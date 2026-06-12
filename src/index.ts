@@ -1,10 +1,24 @@
-import { Hono } from "hono";
-import type { Env } from "./shared/env";
+import { OpenAPIHono } from '@hono/zod-openapi'
+import { setupMiddleware } from './shared/http/middlewares'
+import { dbMiddleware } from './shared/db'
+import { mountBetterAuth } from './shared/auth/mount'
+import { registerAuthRoutes } from './modules/auth/infra/http/auth.router'
+import { registerOnboardingRoutes } from './modules/onboarding/infra/http/onboarding.router'
+import type { Env } from './shared/env'
+import type { Variables } from './shared/types/app'
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new OpenAPIHono<{ Bindings: Env; Variables: Variables }>()
 
-app.get("/health", (c) =>
-  c.json({ status: "ok", timestamp: new Date().toISOString() }),
-);
+setupMiddleware(app)
+app.use('*', dbMiddleware)
 
-export default app;
+app.get('/health', (c) =>
+  c.json({ status: 'ok', timestamp: new Date().toISOString() }),
+)
+
+mountBetterAuth(app)
+
+registerAuthRoutes(app)
+registerOnboardingRoutes(app)
+
+export default app

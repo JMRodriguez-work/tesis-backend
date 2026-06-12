@@ -15,6 +15,13 @@
       "when": 1781301941132,
       "tag": "0001_seed",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781306881028,
+      "tag": "0002_rate_limit",
+      "breakpoints": true
     }
   ]
 }

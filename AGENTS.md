@@ -118,6 +118,18 @@ src/
 | `recommendations` | recommendations |
 | `external-data` | external_data_sources |
 
+### Dónde van los handlers (reglas de ubicación)
+
+- **`src/index.ts`** → SOLO wiring top-level. Instancia de la app, registro de middlewares, mount de `/api/auth/**`, registro de cada `register<Ruta>Routes(app)`, y el `/health`. **Ningún handler de negocio.**
+- **`/api/auth/**`** → Handler de Better Auth. No escribimos controllers: se monta con `app.on(['POST','GET'], '/api/auth/**', c => auth.handler(c.req.raw))` en `index.ts`. La config (adapter, additionalFields, plugins) vive en `src/shared/auth/index.ts`.
+- **`/api/v1/<recurso>`** → Cada recurso (branches, items, sales, etc.) tiene su módulo en `src/modules/<recurso>/` con:
+  - `infra/http/<recurso>.router.ts` → `register<Ruta>Routes(app)`, define las `createRoute()` de OpenAPI y los handlers inline que orquestan use cases.
+  - `infra/http/<recurso>.schemas.ts` → Schemas Zod de validación HTTP.
+  - `infra/repository/<recurso>.repository.ts` → Acceso a DB con Drizzle.
+  - `use-cases/*.use-case.ts` → Lógica de negocio (1 clase por caso de uso, sin acoplar a HTTP).
+  - `domain/*.entity.ts` → Tipos del dominio.
+- **Schemas Zod de request/response** van en el archivo `*.schemas.ts` del módulo, **no** en el router.
+
 ---
 
 ## 4. Convenciones de nomenclatura
@@ -162,6 +174,8 @@ export type AuthUser = {
 
 export type Variables = {
   user: AuthUser
+  db: DB
+  pool: Pool
 }
 
 export type AppType = OpenAPIHono<{
@@ -172,30 +186,59 @@ export type AppType = OpenAPIHono<{
 
 ---
 
-## 6. Base de datos — getDb y schema
+## 6. Base de datos — createDb, dbMiddleware y schema
 
-### 6.1 getDb — lazy singleton por isolate
+### 6.1 Conexión a Postgres — Pool por request, NO singleton
+
+**Por qué NO singleton:** `drizzle-orm/neon-serverless` usa WebSockets nativos. En Cloudflare Workers, los objetos de I/O (incluidos los WebSockets) **no pueden compartirse entre requests distintos** (cada request corre en su propio contexto de I/O). Crear un Pool como singleton en top-level tira `Cannot perform I/O on behalf of a different request`. Ver doc oficial de `@neondatabase/serverless` sección "Pool and Client".
+
+El patrón correcto es: un Pool **por request**, creado y cerrado dentro del handler.
 
 ```typescript
 // shared/db/index.ts
-import { drizzle } from 'drizzle-orm/neon-http'
-import { neon } from '@neondatabase/serverless'
+import { drizzle } from 'drizzle-orm/neon-serverless'
+import { Pool, neonConfig } from '@neondatabase/serverless'
+import { createMiddleware } from 'hono/factory'
 import * as schema from './schema'
 import type { Env } from '../env'
+import type { Variables } from '../types/app'
 
-export type DB = ReturnType<typeof getDb>
+export type DB = ReturnType<typeof drizzle<typeof schema>>
 
-let _db: ReturnType<typeof drizzle<typeof schema>> | null = null
-
-export function getDb(env: Env) {
-  if (!_db) {
-    _db = drizzle(neon(env.DATABASE_URL), { schema })
-  }
-  return _db
+export function createDb(connectionString: string): { db: DB; pool: Pool } {
+  const pool = new Pool({ connectionString })
+  const db = drizzle(pool, { schema })
+  return { db, pool }
 }
+
+export { neonConfig }
+
+export const dbMiddleware = createMiddleware<{
+  Bindings: Env
+  Variables: Variables
+}>(async (c, next) => {
+  const { db, pool } = createDb(c.env.DATABASE_URL)
+  c.set('db', db)
+  c.set('pool', pool)
+  try {
+    await next()
+  } finally {
+    c.executionCtx.waitUntil(pool.end())
+  }
+})
 ```
 
-**Regla:** Llamá `getDb(c.env)` dentro de los handlers o repositorios. NUNCA en top-level (no tenés `env` ahí).
+**Reglas:**
+- Registrá `app.use('*', dbMiddleware)` en `src/index.ts` **antes** de los routers que usen DB.
+- En los handlers usá `const db = c.get('db')`. NUNCA `getDb(c.env)` (no existe esa función).
+- Las queries que necesiten transacción usen `db.transaction(async (tx) => {...})`.
+- Para queries dentro de una tx, los repositorios exponen `table` y helpers (ver §7.1).
+
+**Hyperdrive (opcional, futuro):** Cloudflare Hyperdrive es una capa de pooling/caching global que se puede poner adelante de Neon en producción. Más rápido para cargas multi-región, pero suma fricción en local (requiere `localConnectionString`). **No se usa en este proyecto todavía.** Si en el futuro migramos, el cambio es: en `createDb` reemplazamos `new Pool({connectionString})` por `new Pool({connectionString: env.HYPERDRIVE.connectionString})` y agregamos el binding en `wrangler.jsonc`. El resto del código no cambia.
+
+**Driver de Postgres:** usamos `neon-serverless` (WebSocket, soporta transacciones). NO `neon-http` (sin transacciones, solo una query por request).
+
+**Peer dep:** en Cloudflare Workers, `@neondatabase/serverless` necesita `ws` configurado vía `neonConfig.webSocketConstructor = ws` solo si el runtime no tiene WebSocket nativo. **Workers ya lo tiene nativo**, no requiere config. Verificar si hay warnings al levantar `wrangler dev`.
 
 ### 6.2 Schema Drizzle (modelo completo)
 
@@ -478,82 +521,109 @@ Seguí este patrón para TODOS los módulos. No improvises variantes.
 
 ### 7.1 Repository
 
+**Patrón: funciones puras que reciben `db` como parámetro, NO clases con `this.db`.**
+
+Por qué: las queries dentro de `db.transaction(async (tx) => {...})` reciben un `tx` distinto al `db` original. Para que la misma query sirva tanto fuera como dentro de una tx, el repositorio expone funciones que reciben `db | tx` como parámetro (el tipo de Drizzle lo acepta por inferencia). Adicionalmente, para usar tablas dentro de tx, se exporta la `table` del schema y helpers como `idEq()`.
+
 ```typescript
-// modules/branches/infra/repository/branches.repository.ts
+// modules/branches/infra/repository/branch.repository.ts
 import { eq, and, isNull, count } from 'drizzle-orm'
 import type { DB } from '../../../../shared/db'
 import * as schema from '../../../../shared/db/schema'
 
-export class BranchRepository {
-  constructor(private readonly db: DB) {}
+export const branchTable = schema.branches
 
-  async findAllByOrganization(organizationId: string, limit: number, offset: number) {
-    return this.db
-      .select()
-      .from(schema.branches)
-      .where(
-        and(
-          eq(schema.branches.organizationId, organizationId),
-          isNull(schema.branches.deletedAt)
-        )
-      )
-      .limit(limit)
-      .offset(offset)
-  }
+export function branchIdEq(id: string) {
+  return eq(schema.branches.id, id)
+}
 
-  async findById(id: string) {
-    const result = await this.db
-      .select()
-      .from(schema.branches)
-      .where(and(eq(schema.branches.id, id), isNull(schema.branches.deletedAt)))
-      .limit(1)
-    return result[0] ?? null
-  }
+export async function findAllBranchesByOrganization(
+  db: DB,
+  organizationId: string,
+  limit: number,
+  offset: number,
+) {
+  return db
+    .select()
+    .from(schema.branches)
+    .where(
+      and(
+        eq(schema.branches.organizationId, organizationId),
+        isNull(schema.branches.deletedAt),
+      ),
+    )
+    .limit(limit)
+    .offset(offset)
+}
 
-  async create(data: typeof schema.branches.$inferInsert) {
-    const result = await this.db
-      .insert(schema.branches)
-      .values(data)
-      .returning()
-    return result[0]
-  }
+export async function findBranchById(db: DB, id: string) {
+  const result = await db
+    .select()
+    .from(schema.branches)
+    .where(and(eq(schema.branches.id, id), isNull(schema.branches.deletedAt)))
+    .limit(1)
+  return result[0] ?? null
+}
 
-  async update(id: string, data: Partial<typeof schema.branches.$inferInsert>) {
-    const result = await this.db
-      .update(schema.branches)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(schema.branches.id, id))
-      .returning()
-    return result[0] ?? null
-  }
+export async function createBranch(
+  db: DB,
+  data: typeof schema.branches.$inferInsert,
+) {
+  const result = await db.insert(schema.branches).values(data).returning()
+  return result[0]
+}
 
-  async softDelete(id: string) {
-    await this.db
-      .update(schema.branches)
-      .set({ deletedAt: new Date(), isActive: false })
-      .where(eq(schema.branches.id, id))
-  }
+export async function updateBranch(
+  db: DB,
+  id: string,
+  data: Partial<typeof schema.branches.$inferInsert>,
+) {
+  const result = await db
+    .update(schema.branches)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(schema.branches.id, id))
+    .returning()
+  return result[0] ?? null
+}
 
-  async countByOrganization(organizationId: string) {
-    const result = await this.db
-      .select({ value: count() })
-      .from(schema.branches)
-      .where(
-        and(
-          eq(schema.branches.organizationId, organizationId),
-          isNull(schema.branches.deletedAt)
-        )
-      )
-    return result[0]?.value ?? 0
-  }
+export async function softDeleteBranch(db: DB, id: string) {
+  await db
+    .update(schema.branches)
+    .set({ deletedAt: new Date(), isActive: false })
+    .where(eq(schema.branches.id, id))
+}
+
+export async function countBranchesByOrganization(
+  db: DB,
+  organizationId: string,
+) {
+  const result = await db
+    .select({ value: count() })
+    .from(schema.branches)
+    .where(
+      and(
+        eq(schema.branches.organizationId, organizationId),
+        isNull(schema.branches.deletedAt),
+      ),
+    )
+  return result[0]?.value ?? 0
 }
 ```
+
+**Reglas:**
+- Funciones nombradas con prefijo de tabla (`findBranchById`, `createBranch`, etc.) para legibilidad.
+- Exportar también `branchTable` y `branchIdEq()` para uso dentro de `db.transaction()`.
+- El nombre del archivo usa `branch.repository.ts` (singular), no `branches.repository.ts`, porque la convención del módulo es singular.
 
 ### 7.2 Use Case
 
 ```typescript
 // modules/branches/use-cases/get-branches-paginated.use-case.ts
-import type { BranchRepository } from '../infra/repository/branches.repository'
+import type { DB } from '../../../shared/db'
+import {
+  findAllBranchesByOrganization,
+  countBranchesByOrganization,
+} from '../infra/repository/branch.repository'
 
 export type GetBranchesPaginatedInput = {
   organizationId: string
@@ -562,13 +632,13 @@ export type GetBranchesPaginatedInput = {
 }
 
 export class GetBranchesPaginated {
-  constructor(private readonly repo: BranchRepository) {}
+  constructor(private readonly db: DB) {}
 
   async execute({ organizationId, page, limit }: GetBranchesPaginatedInput) {
     const offset = (page - 1) * limit
     const [data, total] = await Promise.all([
-      this.repo.findAllByOrganization(organizationId, limit, offset),
-      this.repo.countByOrganization(organizationId),
+      findAllBranchesByOrganization(this.db, organizationId, limit, offset),
+      countBranchesByOrganization(this.db, organizationId),
     ])
     return {
       data,
@@ -577,6 +647,8 @@ export class GetBranchesPaginated {
   }
 }
 ```
+
+Si la operación es transaccional, el use case hace `this.db.transaction(async (tx) => {...})` y dentro usa los repos pasando `tx` como argumento (Drizzle acepta `db | tx` por inferencia).
 
 ### 7.3 Schemas Zod
 
@@ -609,10 +681,8 @@ export const branchParamsSchema = z.object({
 ```typescript
 // modules/branches/infra/http/branches.router.ts
 import { createRoute } from '@hono/zod-openapi'
-import { getDb } from '../../../../shared/db'
 import { ApiResponse, ApiError } from '../../../../shared/http/api-response'
 import { authMiddleware } from '../../../../shared/auth'
-import { BranchRepository } from '../repository/branches.repository'
 import { GetBranchesPaginated } from '../../use-cases/get-branches-paginated.use-case'
 import { GetBranchById } from '../../use-cases/get-branch-by-id.use-case'
 import { CreateBranch } from '../../use-cases/create-branch.use-case'
@@ -642,9 +712,8 @@ export function registerBranchRoutes(app: AppType) {
       },
     }),
     async (c) => {
-      const db = getDb(c.env)
-      const repo = new BranchRepository(db)
-      const useCase = new GetBranchesPaginated(repo)
+      const db = c.get('db')
+      const useCase = new GetBranchesPaginated(db)
       const user = c.get('user')
       const query = c.req.valid('query')
       const data = await useCase.execute({ organizationId: user.organizationId, ...query })
@@ -667,9 +736,8 @@ export function registerBranchRoutes(app: AppType) {
       },
     }),
     async (c) => {
-      const db = getDb(c.env)
-      const repo = new BranchRepository(db)
-      const useCase = new GetBranchById(repo)
+      const db = c.get('db')
+      const useCase = new GetBranchById(db)
       const { id } = c.req.valid('param')
       const data = await useCase.execute(id)
       if (!data) throw new ApiError('Sucursal no encontrada', 404)
@@ -693,9 +761,8 @@ export function registerBranchRoutes(app: AppType) {
       },
     }),
     async (c) => {
-      const db = getDb(c.env)
-      const repo = new BranchRepository(db)
-      const useCase = new CreateBranch(repo)
+      const db = c.get('db')
+      const useCase = new CreateBranch(db)
       const user = c.get('user')
       const body = c.req.valid('json')
       const data = await useCase.execute({ ...body, organizationId: user.organizationId })
@@ -721,9 +788,8 @@ export function registerBranchRoutes(app: AppType) {
       },
     }),
     async (c) => {
-      const db = getDb(c.env)
-      const repo = new BranchRepository(db)
-      const useCase = new UpdateBranch(repo)
+      const db = c.get('db')
+      const useCase = new UpdateBranch(db)
       const { id } = c.req.valid('param')
       const body = c.req.valid('json')
       const data = await useCase.execute({ id, ...body })
@@ -747,9 +813,8 @@ export function registerBranchRoutes(app: AppType) {
       },
     }),
     async (c) => {
-      const db = getDb(c.env)
-      const repo = new BranchRepository(db)
-      const useCase = new DeleteBranch(repo)
+      const db = c.get('db')
+      const useCase = new DeleteBranch(db)
       const { id } = c.req.valid('param')
       await useCase.execute(id)
       return c.json(new ApiResponse({ data: null, message: 'Sucursal eliminada', status: 200 }), 200)
@@ -840,14 +905,15 @@ export function setupOpenAPI(app: AppType) {
 // shared/auth/index.ts
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { createMiddleware } from 'hono/factory'
-import { getDb } from '../db'
-import type { AppType, Variables } from '../types/app'
+import type { MiddlewareHandler } from 'hono'
+import { createDb } from '../db'
 import { ApiError } from '../http/api-response'
+import type { Env } from '../env'
+import type { Variables } from '../types/app'
 
-// Better Auth se inicializa con la DB lazy
-export function getAuth(env: Env) {
-  const db = getDb(env)
+// getAuth recibe el db del context (inyectado por dbMiddleware).
+// NO crea su propio Pool — comparte el del request.
+export function getAuth(env: Env, db: Variables['db']) {
   return betterAuth({
     database: drizzleAdapter(db, { provider: 'pg' }),
     secret: env.BETTER_AUTH_SECRET,
@@ -865,32 +931,66 @@ export function getAuth(env: Env) {
   })
 }
 
-export function setupAuth(app: AppType) {
-  app.on(['POST', 'GET'], '/api/auth/**', (c) => {
-    const auth = getAuth(c.env)
-    return auth.handler(c.req.raw)
+// Middleware de autenticación para rutas protegidas
+export const authMiddleware: MiddlewareHandler<{
+  Bindings: Env
+  Variables: Variables
+}> = async (c, next) => {
+  const auth = getAuth(c.env, c.get('db'))
+  const session = await auth.api.getSession({ headers: c.req.raw.headers })
+  if (!session?.user) throw new ApiError('No autenticado', 401)
+  c.set('user', {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    organizationId: (session.user as any).organizationId,
+    branchId: (session.user as any).branchId,
+    roleId: (session.user as any).roleId,
+    isActive: (session.user as any).isActive ?? true,
+  })
+  await next()
+}
+```
+
+```typescript
+// shared/auth/mount.ts — wrapper del handler de Better Auth
+// Traduce los códigos de error de Better Auth a mensajes en español
+// vía shared/auth/errors.ts.
+import { Hono } from 'hono'
+import { getAuth } from '../auth'
+import { getBetterAuthErrorMessage } from '../auth/errors'
+import type { Env } from '../env'
+import type { Variables } from '../types/app'
+
+export function mountBetterAuth(app: Hono<{ Bindings: Env; Variables: Variables }>) {
+  app.on(['POST', 'GET'], '/api/auth/**', async (c) => {
+    const auth = getAuth(c.env, c.get('db'))
+    const response = await auth.handler(c.req.raw)
+
+    if (response.headers.get('content-type')?.includes('application/json')) {
+      const cloned = response.clone()
+      try {
+        const body = (await cloned.json()) as unknown
+        const translated = getBetterAuthErrorMessage(body)
+        if (translated) {
+          const newBody = { ...(body as Record<string, unknown>), message: translated }
+          return c.json(newBody, response.status as 400)
+        }
+      } catch {
+        // No era JSON parseable, dejo la response original
+      }
+    }
+
+    return response
   })
 }
-
-// Middleware de autenticación para rutas protegidas
-export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: Variables }>(
-  async (c, next) => {
-    const auth = getAuth(c.env)
-    const session = await auth.api.getSession({ headers: c.req.raw.headers })
-    if (!session?.user) throw new ApiError('No autenticado', 401)
-    c.set('user', {
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      organizationId: (session.user as any).organizationId,
-      branchId: (session.user as any).branchId,
-      roleId: (session.user as any).roleId,
-      isActive: (session.user as any).isActive ?? true,
-    })
-    await next()
-  }
-)
 ```
+
+**Endpoints propios del módulo auth (en `src/modules/auth/infra/http/auth.router.ts`):**
+- `GET /api/v1/auth/me` — devuelve el usuario autenticado (wrapper de `getSession`).
+- `POST /api/v1/auth/sign-out` — wrapper de `auth.api.signOut()` que no requiere `Content-Type` en el body (a diferencia del endpoint nativo de Better Auth).
+
+Los demás endpoints de Better Auth (`/api/auth/sign-in/email`, `/api/auth/sign-up/email`, etc.) **no se documentan en OpenAPI** — son ~15 endpoints y su contrato lo mantiene la librería. Solo los wrappeamos para i18n.
 
 ---
 

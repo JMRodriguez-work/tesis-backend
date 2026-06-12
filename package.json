@@ -6,7 +6,7 @@
     "deploy": "wrangler deploy --minify",
     "type-check": "tsc --noEmit",
     "db:generate": "drizzle-kit generate --name",
-    "db:generate-custom": "drizzle-kit generate --custom --name",
+    "db:generate-custom": "drizzle-kit generate --custom",
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
@@ -21,10 +21,12 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240620.0",
+    "@types/ws": "^8.18.1",
     "dotenv": "^16.4.5",
     "drizzle-kit": "^0.28.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0",
-    "wrangler": "^4.4.0"
+    "wrangler": "^4.4.0",
+    "ws": "^8.21.0"
   }
 }
