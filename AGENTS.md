@@ -118,6 +118,22 @@ src/
 | `recommendations` | recommendations |
 | `external-data` | external_data_sources |
 
+### Scope-by-branch: cómo se indica la sucursal en cada request
+
+Para los recursos que son scope-by-branch (item-categories, items, sales, stock-movements, etc.), el `branchId` se indica de la siguiente manera:
+
+- **POST/PUT/DELETE (writes):** `branchId` va en el **body** del request, no en headers.
+  - Razón: es parte del recurso que se está creando/modificando. Headers son metadata de transporte.
+  - El frontend lo manda como `useMutation({ branchId: '...' })` (TanStack Query / React Query), trivial.
+  - No fuerza preflight CORS extra.
+  - Permite que OpenAPI describa el shape completo del body.
+- **GET (lecturas con scoping):** `branchId` va como **query param** (`?branchId=...`) cuando el caller es Admin (debe elegir branch) o cuando se quiere consultar una branch distinta. Para Manager/Employee el server fuerza `user.branchId` y la query es ignorada si se manda.
+- **Headers custom están prohibidos** para datos del dominio. Solo se usan para auth (`Cookie`), `Content-Type`, `Accept-Language`, etc.
+
+**Reglas de scope:**
+- **Admin** (roleId=1, sin branch asignada): scope org-wide. En writes, debe indicar `branchId` en el body. En reads, debe indicar `branchId` en query o filtrar client-side. Si el handler no recibe `branchId` → 400.
+- **Manager/Employee** (roleId=2 o 3, con branch asignada): scope-by-branch. El server fuerza `user.branchId`. Si el body trae un `branchId` distinto al del user → 400 ("No podés crear/modificar X en otra sucursal").
+
 ### Dónde van los handlers (reglas de ubicación)
 
 - **`src/index.ts`** → SOLO wiring top-level. Instancia de la app, registro de middlewares, mount de `/api/auth/**`, registro de cada `register<Ruta>Routes(app)`, y el `/health`. **Ningún handler de negocio.**

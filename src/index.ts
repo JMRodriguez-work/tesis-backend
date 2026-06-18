@@ -7,6 +7,8 @@ import { registerOnboardingRoutes } from './modules/onboarding/infra/http/onboar
 import { registerOrganizationRoutes } from './modules/organizations/infra/http/organizations.router'
 import { registerBranchRoutes } from './modules/branches/infra/http/branches.router'
 import { registerUserRoutes } from './modules/users/infra/http/users.router'
+import { registerUnitRoutes } from './modules/units/infra/http/units.router'
+import { registerItemCategoryRoutes } from './modules/item-categories/infra/http/item-categories.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -24,7 +26,9 @@ mountBetterAuth(app)
 registerAuthRoutes(app)
 registerOnboardingRoutes(app)
 registerBranchRoutes(app)
+registerItemCategoryRoutes(app)
 registerOrganizationRoutes(app)
+registerUnitRoutes(app)
 registerUserRoutes(app)
 
 export default app
