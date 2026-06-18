@@ -11,6 +11,7 @@ export type AuthUser = {
   branchId: string | null
   roleId: number | null
   isActive: boolean
+  deletedAt: Date | null
 }
 
 export type Variables = {

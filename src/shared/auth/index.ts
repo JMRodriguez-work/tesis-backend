@@ -60,6 +60,14 @@ export const authMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
     branchId?: string | null
     roleId?: number | null
     isActive?: boolean
+    deletedAt?: Date | string | null
+  }
+
+  const isActive = u.isActive ?? true
+  const deletedAt = u.deletedAt ?? null
+
+  if (isActive === false || deletedAt !== null) {
+    throw new ApiError('Tu cuenta está desactivada', 401)
   }
 
   c.set('user', {
@@ -69,7 +77,8 @@ export const authMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
     organizationId: u.organizationId ?? null,
     branchId: u.branchId ?? null,
     roleId: u.roleId ?? null,
-    isActive: u.isActive ?? true,
+    isActive,
+    deletedAt: deletedAt as Date | null,
   })
 
   await next()

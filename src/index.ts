@@ -5,6 +5,7 @@ import { mountBetterAuth } from './shared/auth/mount'
 import { registerAuthRoutes } from './modules/auth/infra/http/auth.router'
 import { registerOnboardingRoutes } from './modules/onboarding/infra/http/onboarding.router'
 import { registerOrganizationRoutes } from './modules/organizations/infra/http/organizations.router'
+import { registerUserRoutes } from './modules/users/infra/http/users.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -22,5 +23,6 @@ mountBetterAuth(app)
 registerAuthRoutes(app)
 registerOnboardingRoutes(app)
 registerOrganizationRoutes(app)
+registerUserRoutes(app)
 
 export default app
