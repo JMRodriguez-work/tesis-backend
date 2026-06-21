@@ -1,5 +1,6 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { setupMiddleware } from './shared/http/middlewares'
+import { setupOpenAPI } from './shared/http/openapi'
 import { dbMiddleware } from './shared/db'
 import { mountBetterAuth } from './shared/auth/mount'
 import { handleQueueBatch } from './shared/queue'
@@ -32,6 +33,7 @@ const app = new OpenAPIHono<{ Bindings: Env; Variables: Variables }>()
 
 setupMiddleware(app)
 app.use('*', dbMiddleware)
+setupOpenAPI(app)
 
 app.get('/health', (c) =>
   c.json({ status: 'ok', timestamp: new Date().toISOString() }),

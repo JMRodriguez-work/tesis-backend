@@ -1206,19 +1206,55 @@ export default {
 
 ## 10. Configuración Cloudflare
 
-### wrangler.toml
+### wrangler.jsonc
 
-```toml
-name = "tfg-backend"
-main = "src/index.ts"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+> Archivo real del proyecto (no `wrangler.toml`). El JSONC permite comentarios y es el formato que wrangler 4.x usa por default. `wrangler deploy` lee este archivo y crea automáticamente las queues + bindings declarados.
 
-[vars]
-BETTER_AUTH_URL = "https://tfg-backend.<tu-usuario>.workers.dev"
-
-# NO pongas secrets aquí. Usá: wrangler secret put <NOMBRE>
+```jsonc
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tfg-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": {
+    "BETTER_AUTH_URL": "http://localhost:8787"  // dev. En prod: https://tfg-backend.<subdominio>.workers.dev
+  },
+  "queues": {
+    "producers": [{ "queue": "tfg-analytics", "binding": "ANALYTICS_QUEUE" }],
+    "consumers": [{
+      "queue": "tfg-analytics",
+      "max_batch_size": 10,
+      "max_batch_timeout": 30,
+      "max_retries": 5,
+      "dead_letter_queue": "tfg-analytics-dlq",
+      "max_concurrency": 3
+    }]
+  },
+  "triggers": { "crons": ["0 6 * * *"] },
+  "env": {
+    "production": {
+      "name": "tfg-backend",
+      "vars": { "BETTER_AUTH_URL": "https://tfg-backend.<subdominio>.workers.dev" },
+      "queues": {
+        "producers": [{ "queue": "tfg-analytics-prod", "binding": "ANALYTICS_QUEUE" }],
+        "consumers": [{
+          "queue": "tfg-analytics-prod",
+          "max_batch_size": 25,
+          "max_batch_timeout": 15,
+          "max_retries": 5,
+          "dead_letter_queue": "tfg-analytics-prod-dlq",
+          "max_concurrency": 10
+        }]
+      },
+      "triggers": { "crons": ["0 6 * * *"] }
+    }
+  }
+}
 ```
+
+> **NO pongas secrets en `wrangler.jsonc`.** Usá `wrangler secret put <NOMBRE> --env production`. Para dev, ponelos en `.dev.vars` (gitignored).
 
 ### package.json scripts
 
@@ -1226,14 +1262,19 @@ BETTER_AUTH_URL = "https://tfg-backend.<tu-usuario>.workers.dev"
 {
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:generate": "drizzle-kit generate",
+    "deploy": "wrangler deploy --minify",
+    "db:generate": "drizzle-kit generate --name",
+    "db:generate:custom": "drizzle-kit generate --custom --name",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio",
     "type-check": "tsc --noEmit"
   }
 }
 ```
+
+> **Convención de migraciones** (regla operativa del proyecto, no en el snippet de referencia):
+> - Cambios de schema detectados por drizzle-kit → `npm run db:generate` (vos lo corrés, te genera el `.sql`).
+> - SQL custom (ej: seed, índices únicos, data fixes) → `npm run db:generate:custom` después de pegar el SQL en `drizzle/`.
+> - **Nunca** crear el `.sql` a mano. **Nunca** aplicar migraciones a mano contra la DB.
 
 ### tsconfig.json
 
