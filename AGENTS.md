@@ -83,6 +83,7 @@ src/
 │   ├── organizations/
 │   ├── recommendations/
 │   ├── dashboard/
+│   ├── reports/
 │   └── external-data/
 └── shared/
     ├── db/
@@ -118,6 +119,7 @@ src/
 | `provider-orders` | provider_orders, provider_order_items |
 | `recommendations` | recommendations |
 | `dashboard` | — (read-only, queries analíticas sobre sales/items) |
+| `reports` | — (read-only, queries analíticas con date_trunc) |
 | `external-data` | external_data_sources |
 
 ### Scope-by-branch: cómo se indica la sucursal en cada request
@@ -1043,6 +1045,7 @@ import { registerUserRoutes } from './modules/users/infra/http/users.router'
 import { registerUnitRoutes } from './modules/units/infra/http/units.router'
 import { registerRecommendationRoutes } from './modules/recommendations/infra/http/recommendations.router'
 import { registerDashboardRoutes } from './modules/dashboard/infra/http/dashboard.router'
+import { registerReportRoutes } from './modules/reports/infra/http/reports.router'
 import { registerExternalDataRoutes } from './modules/external-data/infra/http/external-data.router'
 
 // App top-level: se ejecuta UNA vez por isolate
@@ -1066,6 +1069,7 @@ registerUserRoutes(app)
 registerUnitRoutes(app)
 registerRecommendationRoutes(app)
 registerDashboardRoutes(app)
+registerReportRoutes(app)
 registerExternalDataRoutes(app)
 
 // Health check sin auth
