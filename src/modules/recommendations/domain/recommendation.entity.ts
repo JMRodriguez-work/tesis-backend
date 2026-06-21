@@ -8,6 +8,8 @@ export type RecommendationWithRelations = {
   branch: { id: string; name: string }
   itemId: string | null
   item: { id: string; name: string; code: string | null } | null
+  customerId: string | null
+  customer: { id: string; fullname: string } | null
   type: RecommendationType
   description: string
   priority: RecommendationPriority
@@ -23,6 +25,8 @@ export type RecommendationListRow = {
   itemId: string | null
   itemName: string | null
   itemCode: string | null
+  customerId: string | null
+  customerFullname: string | null
   type: RecommendationType
   description: string
   priority: RecommendationPriority

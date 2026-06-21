@@ -3,6 +3,7 @@ import type { Env } from "../env";
 import type { AnalyticsJobMessage } from "./types";
 import { handleDetectInactiveCustomers } from "./handlers/detect-inactive-customers";
 import { handleFetchExternalData } from "./handlers/fetch-external-data";
+import { handleGenerateSeasonalRecommendations } from "./handlers/generate-seasonal-recommendations";
 import { handleSendEmail } from "./handlers/send-email";
 
 export async function handleQueueBatch(
@@ -24,6 +25,10 @@ export async function handleQueueBatch(
           break;
         case "send-email":
           await handleSendEmail(body, env);
+          msg.ack();
+          break;
+        case "generate-seasonal-recommendations":
+          await handleGenerateSeasonalRecommendations(body, env);
           msg.ack();
           break;
         default: {

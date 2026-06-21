@@ -2,10 +2,14 @@ import { ApiError } from "../../../shared/http/api-response";
 import type { DB } from "../../../shared/db";
 import {
   findSourceById,
+  setLastError,
   upsertSourceData,
 } from "../infra/repository/external-data.repository";
 import { mergeExternalData } from "../triggers/merge-external-data";
-import type { FetchExternalDataResult } from "../domain/external-data.entity";
+import type {
+  AuthConfig,
+  FetchExternalDataResult,
+} from "../domain/external-data.entity";
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -27,36 +31,49 @@ export class RunFetchExternalData {
       );
     }
 
+    if (!source.isActive) {
+      throw new ApiError(
+        `La fuente "${source.name}" está deshabilitada`,
+        400,
+      );
+    }
+
     if (!source.url) {
+      const now = new Date();
+      await setLastError(
+        this.db,
+        source.id,
+        "La fuente no tiene URL configurada",
+        now,
+      );
       throw new ApiError(
         `La fuente "${source.name}" no tiene URL configurada`,
         400,
       );
     }
 
-    const response = await fetch(source.url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Fetch failed for source "${source.name}" (${source.url}): ${response.status} ${response.statusText}`,
-      );
-    }
-
+    const fetchedAt = new Date();
     let rawData: unknown;
     try {
-      rawData = await response.json();
+      rawData = await this.fetchUrl(source.url, source.authConfig);
     } catch (err) {
-      throw new Error(
-        `Fetch returned invalid JSON for source "${source.name}": ${(err as Error).message}`,
-      );
+      const message =
+        err instanceof Error ? err.message : "Fetch failed with unknown error";
+      await setLastError(this.db, source.id, message, fetchedAt);
+      throw err;
     }
 
-    const fetchedAt = new Date();
-    const merged = mergeExternalData(rawData, source.type, fetchedAt);
+    let merged;
+    try {
+      merged = mergeExternalData(rawData, source.type, fetchedAt);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? `Parse error: ${err.message}`
+          : "Parse error: unknown";
+      await setLastError(this.db, source.id, message, fetchedAt);
+      throw err;
+    }
 
     const updated = await upsertSourceData(
       this.db,
@@ -76,5 +93,36 @@ export class RunFetchExternalData {
       updated: true,
       fetchedAt,
     };
+  }
+
+  private async fetchUrl(url: string, authConfig: AuthConfig | null) {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+    let finalUrl = url;
+    if (authConfig?.headers) {
+      Object.assign(headers, authConfig.headers);
+    }
+    if (authConfig?.queryParams) {
+      const u = new URL(url);
+      for (const [k, v] of Object.entries(authConfig.queryParams)) {
+        u.searchParams.set(k, v);
+      }
+      finalUrl = u.toString();
+    }
+
+    const response = await fetch(finalUrl, {
+      method: "GET",
+      headers,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Fetch failed: ${response.status} ${response.statusText} (url=${finalUrl})`,
+      );
+    }
+
+    return response.json();
   }
 }

@@ -1,7 +1,8 @@
 export type AnalyticsJobMessage =
   | DetectInactiveCustomersMessage
   | FetchExternalDataMessage
-  | SendEmailMessage;
+  | SendEmailMessage
+  | GenerateSeasonalRecommendationsMessage;
 
 export type DetectInactiveCustomersMessage = {
   type: "detect-inactive-customers";
@@ -29,6 +30,14 @@ export type SendEmailMessage = {
   data: Record<string, unknown>;
 };
 
+export type GenerateSeasonalRecommendationsMessage = {
+  type: "generate-seasonal-recommendations";
+  jobId: string;
+  organizationId: string | null;
+  branchId: string | null;
+  triggeredBy: string;
+};
+
 export function isDetectInactiveCustomers(
   msg: AnalyticsJobMessage,
 ): msg is DetectInactiveCustomersMessage {
@@ -43,4 +52,10 @@ export function isFetchExternalData(
 
 export function isSendEmail(msg: AnalyticsJobMessage): msg is SendEmailMessage {
   return msg.type === "send-email";
+}
+
+export function isGenerateSeasonalRecommendations(
+  msg: AnalyticsJobMessage,
+): msg is GenerateSeasonalRecommendationsMessage {
+  return msg.type === "generate-seasonal-recommendations";
 }

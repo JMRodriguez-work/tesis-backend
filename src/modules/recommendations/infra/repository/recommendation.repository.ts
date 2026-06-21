@@ -45,6 +45,8 @@ function rowToListRow(r: {
   itemId: string | null
   itemName: string | null
   itemCode: string | null
+  customerId: string | null
+  customerFullname: string | null
   type: string
   description: string
   priority: string
@@ -59,6 +61,8 @@ function rowToListRow(r: {
     itemId: r.itemId,
     itemName: r.itemName,
     itemCode: r.itemCode,
+    customerId: r.customerId,
+    customerFullname: r.customerFullname,
     type: r.type as RecommendationType,
     description: r.description,
     priority: r.priority as RecommendationPriority,
@@ -83,6 +87,8 @@ export async function findRecommendationsPaginated(
       itemId: recommendationTable.itemId,
       itemName: schema.items.name,
       itemCode: schema.items.code,
+      customerId: recommendationTable.customerId,
+      customerFullname: schema.customers.fullname,
       type: recommendationTable.type,
       description: recommendationTable.description,
       priority: recommendationTable.priority,
@@ -93,6 +99,7 @@ export async function findRecommendationsPaginated(
     .from(recommendationTable)
     .innerJoin(schema.branches, eq(schema.branches.id, recommendationTable.branchId))
     .leftJoin(schema.items, eq(schema.items.id, recommendationTable.itemId))
+    .leftJoin(schema.customers, eq(schema.customers.id, recommendationTable.customerId))
     .where(and(...buildConditions(filters, organizationId)))
     .orderBy(desc(recommendationTable.generatedAt))
     .limit(limit)
@@ -135,6 +142,8 @@ export async function findRecommendationById(
       itemId: recommendationTable.itemId,
       itemName: schema.items.name,
       itemCode: schema.items.code,
+      customerId: recommendationTable.customerId,
+      customerFullname: schema.customers.fullname,
       type: recommendationTable.type,
       description: recommendationTable.description,
       priority: recommendationTable.priority,
@@ -145,6 +154,7 @@ export async function findRecommendationById(
     .from(recommendationTable)
     .innerJoin(schema.branches, eq(schema.branches.id, recommendationTable.branchId))
     .leftJoin(schema.items, eq(schema.items.id, recommendationTable.itemId))
+    .leftJoin(schema.customers, eq(schema.customers.id, recommendationTable.customerId))
     .where(eq(recommendationTable.id, id))
     .limit(1)
 
@@ -158,6 +168,10 @@ export async function findRecommendationById(
     itemId: row.itemId,
     item: row.itemId
       ? { id: row.itemId, name: row.itemName ?? '', code: row.itemCode }
+      : null,
+    customerId: row.customerId,
+    customer: row.customerId
+      ? { id: row.customerId, fullname: row.customerFullname ?? '' }
       : null,
     type: row.type as RecommendationType,
     description: row.description,

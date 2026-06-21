@@ -1,10 +1,8 @@
-import type { ExternalDataSourceType } from "../domain/external-data.entity";
-
-export type MergedExternalData = {
-  type: ExternalDataSourceType;
-  fetchedAt: string;
-  payload: unknown;
-};
+import { mergeExternalDataByType } from "../infra/http/parsers";
+import type {
+  ExternalDataSourceType,
+  MergedExternalData,
+} from "../domain/external-data.entity";
 
 export function mergeExternalData(
   rawData: unknown,
@@ -16,10 +14,7 @@ export function mergeExternalData(
       `External data payload must be a JSON object or array (got ${typeof rawData})`,
     );
   }
-
-  return {
-    type: sourceType,
-    fetchedAt: fetchedAt.toISOString(),
-    payload: rawData,
-  };
+  return mergeExternalDataByType(sourceType, rawData, fetchedAt);
 }
+
+export type { MergedExternalData };

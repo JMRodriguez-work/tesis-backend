@@ -85,7 +85,7 @@ src/
 │   ├── dashboard/
 │   ├── reports/
 │   ├── customer-analytics/           # HU-025 (retention) + HU-026 (segments). Usa Queues para jobs async.
-│   └── external-data/                # HU-030 (IPC) + HU-031 (seasonality). Cron Trigger + Queue.
+│   └── external-data/                # HU-030 (IPC) + HU-031 (seasonality). Cron Trigger + Queue. CRUD Admin, parser registry por type, authConfig jsonb.
 └── shared/
     ├── db/
     │   ├── index.ts                  # createDb() — lazy singleton por isolate (HTTP requests)
@@ -105,7 +105,7 @@ src/
     │   ├── consumer-db.ts            # createConsumerDb / closeConsumerDb — pool para handlers
     │   └── handlers/                  # un archivo por tipo de mensaje
     │       ├── detect-inactive-customers.ts
-    │       ├── fetch-external-data.ts (placeholder 3.4)
+    │       ├── fetch-external-data.ts
     │       └── send-email.ts (placeholder 3.5/HU-003)
     └── types/
         └── app.ts                    # AppType, Variables — tipos globales de Hono
@@ -609,7 +609,7 @@ export default {
 3. Wirear en `shared/queue/dispatcher.ts` (case del switch).
 4. Documentar aquí.
 
-Tipos actuales: `detect-inactive-customers` (3.3 ✅), `fetch-external-data` (placeholder 3.4), `send-email` (placeholder 3.5 / HU-003).
+Tipos actuales: `detect-inactive-customers` (3.3 ✅), `fetch-external-data` (3.4 ✅), `send-email` (placeholder 3.5 / HU-003), `generate-seasonal-recommendations` (3.5-A ✅ — stub, lógica real en 3.5-B).
 
 **Idempotencia:** el patrón asume que un job puede ejecutarse más de una vez (retries, concurrencia). Cada handler debe ser idempotente. `RunDetectInactive` lo logra con un `existingSet` que filtra customers que ya tienen recommendation pending.
 

@@ -5,7 +5,8 @@ import {
 } from "../infra/repository/recommendation.repository";
 import {
   buildRestockDescription,
-  computeRestockPriority,
+  computeRestockPriorityWithIpc,
+  type IpcContext,
 } from "./restock-priority";
 
 export type OnSaleCreatedInput = {
@@ -14,6 +15,7 @@ export type OnSaleCreatedInput = {
   itemName: string;
   newQuantity: string;
   minStock: string;
+  ipcContext?: IpcContext | null;
 };
 
 export async function onSaleCreated(tx: DB, input: OnSaleCreatedInput) {
@@ -30,11 +32,17 @@ export async function onSaleCreated(tx: DB, input: OnSaleCreatedInput) {
     return null;
   }
 
-  const priority = computeRestockPriority(input.newQuantity, input.minStock);
+  const ipcValue = input.ipcContext?.latest.value ?? null;
+  const priority = computeRestockPriorityWithIpc(
+    input.newQuantity,
+    input.minStock,
+    ipcValue,
+  );
   const description = buildRestockDescription(
     input.itemName,
     input.newQuantity,
     input.minStock,
+    input.ipcContext ?? null,
   );
 
   return createRestockRecommendation(tx, {

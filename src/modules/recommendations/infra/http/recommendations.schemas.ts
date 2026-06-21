@@ -34,12 +34,19 @@ const itemRefSchema = z.object({
   code: z.string().nullable(),
 })
 
+const customerRefSchema = z.object({
+  id: z.string().uuid(),
+  fullname: z.string(),
+})
+
 export const recommendationSchema = z.object({
   id: z.string().uuid(),
   branchId: z.string().uuid(),
   branch: branchRefSchema,
   itemId: z.string().uuid().nullable(),
   item: itemRefSchema.nullable(),
+  customerId: z.string().uuid().nullable(),
+  customer: customerRefSchema.nullable(),
   type: z.enum(['restock', 'pricing', 'trend', 'seasonal', 'retention']),
   description: z.string(),
   priority: z.enum(['high', 'medium', 'low']),
@@ -61,6 +68,8 @@ const recommendationListRowSchema = z.object({
   itemId: z.string().uuid().nullable(),
   itemName: z.string().nullable(),
   itemCode: z.string().nullable(),
+  customerId: z.string().uuid().nullable(),
+  customerFullname: z.string().nullable(),
   type: z.enum(['restock', 'pricing', 'trend', 'seasonal', 'retention']),
   description: z.string(),
   priority: z.enum(['high', 'medium', 'low']),

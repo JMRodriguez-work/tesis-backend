@@ -25,10 +25,45 @@ export function computeRestockPriority(
   return 'low'
 }
 
+/**
+ * Variant of `computeRestockPriority` that bumps the priority to `high`
+ * when the latest IPC value exceeds the inflation threshold. The threshold
+ * is a percentage expressed as a number (e.g. 5 means 5% MoM).
+ *
+ * If `ipcValue` is null, falls back to the base ratio-based priority.
+ */
+export const IPC_HIGH_PRIORITY_THRESHOLD = 5
+
+export function computeRestockPriorityWithIpc(
+  quantity: string,
+  minStock: string,
+  ipcValue: number | null,
+): RecommendationPriority {
+  const base = computeRestockPriority(quantity, minStock)
+  if (
+    ipcValue !== null &&
+    ipcValue > IPC_HIGH_PRIORITY_THRESHOLD &&
+    base !== 'high'
+  ) {
+    return 'high'
+  }
+  return base
+}
+
+export type IpcContext = {
+  latest: { period: string; value: number }
+  source: string
+}
+
 export function buildRestockDescription(
   itemName: string,
   quantity: string,
   minStock: string,
+  ipcContext: IpcContext | null = null,
 ): string {
-  return `Stock bajo nivel crítico: quedan ${quantity} unidades de "${itemName}" (mínimo: ${minStock}). Reponer.`
+  const base = `Stock bajo nivel crítico: quedan ${quantity} unidades de "${itemName}" (mínimo: ${minStock}).`
+  if (!ipcContext) {
+    return `${base} Reponer.`
+  }
+  return `${base} IPC último mes: +${ipcContext.latest.value}% (${ipcContext.latest.period}, fuente: ${ipcContext.source}). Reponer y considerar ajuste de precio.`
 }

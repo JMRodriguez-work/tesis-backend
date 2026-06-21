@@ -6,7 +6,7 @@
     "deploy": "wrangler deploy --minify",
     "type-check": "tsc --noEmit",
     "db:generate": "drizzle-kit generate --name",
-    "db:generate-custom": "drizzle-kit generate --custom",
+    "db:generate:custom": "drizzle-kit generate --custom --name",
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {

@@ -338,6 +338,10 @@ export const externalDataSources = pgTable("external_data_sources", {
   url: text("url"),
   lastFetchedAt: timestamp("last_fetched_at"),
   data: jsonb("data"),
+  isActive: boolean("is_active").notNull().default(true),
+  lastError: text("last_error"),
+  lastErrorAt: timestamp("last_error_at"),
+  authConfig: jsonb("auth_config"),
 });
 
 export const rateLimit = pgTable("rateLimit", {

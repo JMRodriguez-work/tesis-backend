@@ -3,20 +3,34 @@ import {
   countSources,
   findAllSources,
 } from "../infra/repository/external-data.repository";
-import type { ExternalDataSourceRow } from "../domain/external-data.entity";
+import type {
+  ExternalDataSourceRow,
+  ExternalDataSourceType,
+} from "../domain/external-data.entity";
 
-export type GetExternalDataSourcesResult = {
+export type ListExternalDataSourcesInput = {
+  isActive?: boolean;
+  type?: ExternalDataSourceType;
+};
+
+export type ListExternalDataSourcesResult = {
   data: ExternalDataSourceRow[];
   meta: { total: number };
 };
 
-export class GetExternalDataSources {
+export class ListExternalDataSources {
   constructor(private readonly db: DB) {}
 
-  async execute(): Promise<GetExternalDataSourcesResult> {
+  async execute(
+    input: ListExternalDataSourcesInput = {},
+  ): Promise<ListExternalDataSourcesResult> {
+    const filters = {
+      isActive: input.isActive,
+      type: input.type,
+    };
     const [data, total] = await Promise.all([
-      findAllSources(this.db),
-      countSources(this.db),
+      findAllSources(this.db, filters),
+      countSources(this.db, filters),
     ]);
     return { data, meta: { total } };
   }
