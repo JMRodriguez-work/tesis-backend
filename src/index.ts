@@ -22,6 +22,8 @@ import { registerStockMovementRoutes } from './modules/stock-movements/infra/htt
 import { registerDashboardRoutes } from './modules/dashboard/infra/http/dashboard.router'
 import { registerReportRoutes } from './modules/reports/infra/http/reports.router'
 import { registerCustomerAnalyticsRoutes } from './modules/customer-analytics/infra/http/customer-analytics.router'
+import { registerExternalDataRoutes } from './modules/external-data/infra/http/external-data.router'
+import { handleScheduledFetchExternalData } from './modules/external-data/triggers/on-cron-fetch-external-data'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -42,6 +44,7 @@ registerBranchRoutes(app)
 registerCustomerRoutes(app)
 registerCustomerAnalyticsRoutes(app)
 registerDashboardRoutes(app)
+registerExternalDataRoutes(app)
 registerItemCategoryRoutes(app)
 registerItemRoutes(app)
 registerOrganizationRoutes(app)
@@ -56,13 +59,17 @@ registerUserRoutes(app)
 registerWarehouseRoutes(app)
 
 /**
- * Dual export: the same Worker handles HTTP requests and queue
- * messages. See AGENTS.md §6.3 for the architecture rationale.
+ * Triple export: the same Worker handles HTTP requests, queue
+ * messages, and scheduled (cron) invocations. See AGENTS.md §6.3 for
+ * the architecture rationale.
  *
  * - `fetch` delegates to the Hono app.
  * - `queue` is invoked by Cloudflare with a batch of messages from
  *   `ANALYTICS_QUEUE`. The dispatcher in `shared/queue/dispatcher.ts`
  *   routes each message to the right handler.
+ * - `scheduled` is invoked by the Cron Trigger configured in
+ *   `wrangler.jsonc` (`triggers.crons`). Phase 3.4 uses it to enqueue
+ *   `fetch-external-data` jobs for every configured source.
  */
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -70,5 +77,8 @@ export default {
   },
   async queue(batch: MessageBatch<AnalyticsJobMessage>, env: Env, ctx: ExecutionContext) {
     return handleQueueBatch(batch, env, ctx)
+  },
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(handleScheduledFetchExternalData(env, ctx))
   },
 } satisfies ExportedHandler<Env, AnalyticsJobMessage>

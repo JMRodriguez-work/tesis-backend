@@ -81,11 +81,11 @@ src/
 │   ├── units/
 │   ├── users/
 │   ├── organizations/
-│   ├── recommendations/
+│       ├── recommendations/
 │   ├── dashboard/
 │   ├── reports/
 │   ├── customer-analytics/           # HU-025 (retention) + HU-026 (segments). Usa Queues para jobs async.
-│   └── external-data/
+│   └── external-data/                # HU-030 (IPC) + HU-031 (seasonality). Cron Trigger + Queue.
 └── shared/
     ├── db/
     │   ├── index.ts                  # createDb() — lazy singleton por isolate (HTTP requests)
@@ -619,18 +619,34 @@ Tipos actuales: `detect-inactive-customers` (3.3 ✅), `fetch-external-data` (pl
 
 **Local dev con `wrangler dev`:** Miniflare simula queues localmente (persistencia en disco). Los mensajes enviados con `env.ANALYTICS_QUEUE.send(...)` se procesan por el consumer casi inmediatamente (delay 1-2s). Funciona out-of-the-box, sin config extra.
 
-**Cron Triggers** (Fase 3.4) se agregan como un tercer método del default export:
+**Cron Triggers** (Fase 3.4) son el tercer método del default export. Se configuran en `wrangler.jsonc` con `triggers.crons` (formato cron estándar de 5 campos, timezone UTC):
+
+```jsonc
+{
+  "triggers": { "crons": ["0 6 * * *"] },
+  "env": {
+    "production": { "triggers": { "crons": ["0 6 * * *"] } }
+  }
+}
+```
+
 ```typescript
 export default {
   async fetch(...) {},
   async queue(...) {},
   async scheduled(event, env, ctx) {
-    // para 3.4: encolar un job de fetch-external-data
+    ctx.waitUntil(handleScheduledFetchExternalData(env, ctx))
   },
 }
 ```
 
-Configurar en `wrangler.jsonc` con `triggers: { crons: ['0 6 * * *'] }`.
+**Convenciones para `scheduled` handlers:**
+- Usá `ctx.waitUntil(...)` para work async (el handler retorna antes de que termine).
+- El handler NO recibe `request` ni `c` (Hono). Crea su propio pool de DB con `createConsumerDb(env.DATABASE_URL)` y lo cierra al final.
+- El cron corre en UTC. Para "6 AM Argentina" (UTC-3) usá `0 9 * * *`.
+- **Local dev con `wrangler dev --test-scheduled`**: Miniflare expone `GET /__scheduled?cron=<expr>` para disparar el cron manualmente. Sin el flag, el cron no corre.
+- En producción, Cloudflare invoca el handler según el schedule. Reintentos: si el handler throw, Cloudflare reintenta (la doc oficial dice "may retry" — tratálo como best-effort). Por eso **el handler debe ser idempotente**.
+- Si necesitás encolar mensajes desde el cron, usá el mismo `env.ANALYTICS_QUEUE.send(...)` que el resto del código. Patrón: el cron encola N mensajes (uno por source) en vez de 1 mensaje "fetch all" — así un fallo no contamina el batch entero.
 
 ---
 

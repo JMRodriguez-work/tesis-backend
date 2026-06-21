@@ -25,6 +25,9 @@
       }
     ]
   },
+  "triggers": {
+    "crons": ["0 6 * * *"]
+  },
   "env": {
     "production": {
       "name": "tfg-backend",
@@ -45,6 +48,9 @@
             "max_concurrency": 10
           }
         ]
+      },
+      "triggers": {
+        "crons": ["0 6 * * *"]
       }
     }
   }
