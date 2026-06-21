@@ -51,6 +51,7 @@ export function registerOnboardingRoutes(app: AppType) {
         userId: user.id,
         organizationName: body.organizationName,
         branchName: body.branchName,
+        warehouseName: body.warehouseName,
       });
 
       return c.json(
