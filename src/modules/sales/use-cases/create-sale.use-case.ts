@@ -16,6 +16,7 @@ import {
   resolveSaleBranchForWrite,
   type ResolveSaleBranchInput,
 } from "./resolve-sale-branch";
+import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
 
 export type CreateSaleItemInput = {
   itemId: string;
@@ -41,6 +42,7 @@ type ResolvedItem = {
   unitId: number | null;
   warehouseId: string;
   stockId: string;
+  minStock: string;
 };
 
 function round2(n: number): string {
@@ -165,6 +167,7 @@ export class CreateSale {
         unitId: raw.unitId ?? null,
         warehouseId: stock.warehouseId,
         stockId: stock.stockId,
+        minStock: stock.minStock,
       });
     }
 
@@ -239,6 +242,13 @@ export class CreateSale {
           quantity: it.quantity.toString(),
           referenceId: created.id,
           referenceType: "sale",
+        });
+        await onSaleCreated(tx as unknown as DB, {
+          branchId,
+          itemId: it.itemId,
+          itemName: it.itemName,
+          newQuantity: decremented.newQuantity,
+          minStock: it.minStock,
         });
       }
 

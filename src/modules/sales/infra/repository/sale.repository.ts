@@ -489,6 +489,7 @@ export type WarehouseStockRow = {
   stockId: string
   warehouseId: string
   quantity: string
+  minStock: string
 }
 
 /**
@@ -506,6 +507,7 @@ export async function findStockInBranchWarehousesForItem(
       stockId: schema.warehouseItemStocks.id,
       warehouseId: schema.warehouseItemStocks.warehouseId,
       quantity: schema.warehouseItemStocks.quantity,
+      minStock: schema.warehouseItemStocks.minStock,
     })
     .from(schema.warehouseItemStocks)
     .innerJoin(

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ApiError } from "../../../shared/http/api-response";
 import type { DB } from "../../../shared/db";
 import * as schema from "../../../shared/db/schema";
@@ -9,6 +9,7 @@ import {
   softDeleteSale,
   upsertIncrementStock,
 } from "../infra/repository/sale.repository";
+import { onStockIncreased } from "../../recommendations/triggers/on-stock-increased";
 
 export type CancelSaleInput = {
   saleId: string;
@@ -89,7 +90,7 @@ export class CancelSale {
             500,
           );
         }
-        await upsertIncrementStock(
+        const upserted = await upsertIncrementStock(
           tx as unknown as DB,
           it.itemId,
           warehouseId,
@@ -105,6 +106,23 @@ export class CancelSale {
           quantity: it.quantity,
           referenceId: sale.id,
           referenceType: "sale_cancellation",
+        });
+        const stockRow = await tx
+          .select({ minStock: schema.warehouseItemStocks.minStock })
+          .from(schema.warehouseItemStocks)
+          .where(
+            and(
+              eq(schema.warehouseItemStocks.itemId, it.itemId),
+              eq(schema.warehouseItemStocks.warehouseId, warehouseId),
+            ),
+          )
+          .limit(1);
+        const minStock = stockRow[0]?.minStock ?? "0";
+        await onStockIncreased(tx as unknown as DB, {
+          branchId: sale.branchId,
+          itemId: it.itemId,
+          newQuantity: upserted.quantity,
+          minStock,
         });
       }
     });

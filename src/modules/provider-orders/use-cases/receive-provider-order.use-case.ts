@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { ApiError } from '../../../shared/http/api-response'
 import type { DB } from '../../../shared/db'
 import * as schema from '../../../shared/db/schema'
@@ -9,6 +9,7 @@ import {
   findWarehouseByIdRaw,
 } from '../infra/repository/provider-order.repository'
 import { upsertIncrementStock } from '../../sales/infra/repository/sale.repository'
+import { onStockIncreased } from '../../recommendations/triggers/on-stock-increased'
 
 export type ReceiveProviderOrderInput = {
   orderId: string
@@ -85,7 +86,7 @@ export class ReceiveProviderOrder {
       if (!updated[0]) throw new ApiError('No se pudo marcar la orden como recibida', 500)
 
       for (const it of items) {
-        await upsertIncrementStock(
+        const upserted = await upsertIncrementStock(
           tx as unknown as DB,
           it.itemId,
           input.warehouseId,
@@ -102,11 +103,26 @@ export class ReceiveProviderOrder {
           referenceId: order.id,
           referenceType: 'provider_order',
         })
+        // HU-017: if receiving restored stock above minStock, close recommendations
+        const stockRow = await tx
+          .select({ minStock: schema.warehouseItemStocks.minStock })
+          .from(schema.warehouseItemStocks)
+          .where(
+            and(
+              eq(schema.warehouseItemStocks.itemId, it.itemId),
+              eq(schema.warehouseItemStocks.warehouseId, input.warehouseId),
+            ),
+          )
+          .limit(1)
+        const minStock = stockRow[0]?.minStock ?? '0'
+        await onStockIncreased(tx as unknown as DB, {
+          branchId: order.branchId,
+          itemId: it.itemId,
+          newQuantity: upserted.quantity,
+          minStock,
+        })
       }
     })
-
-    // TODO Fase 2.5 (HU-017): después del upsert, si el stock resultante del item
-    // supera su minStock, marcar recomendaciones activas tipo 'restock' como 'applied'.
 
     const enriched = await findProviderOrderById(this.db, input.orderId)
     if (!enriched) throw new ApiError('Orden no encontrada', 404)

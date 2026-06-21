@@ -13,6 +13,8 @@ import {
   findWarehouseBranchAssignment,
   findWarehouseByIdRaw,
 } from "../infra/repository/stock-movement.repository";
+import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
+import { onStockIncreased } from "../../recommendations/triggers/on-stock-increased";
 
 export type CreateAdjustmentInput = {
   branchId: string;
@@ -70,9 +72,14 @@ export class CreateAdjustment {
     }
 
     const movement = await this.db.transaction(async (tx) => {
+      let resultingQuantity = "0";
+      let minStock = "0";
       if (input.direction === "out") {
         const stockRow = await tx
-          .select({ id: schema.warehouseItemStocks.id })
+          .select({
+            id: schema.warehouseItemStocks.id,
+            minStock: schema.warehouseItemStocks.minStock,
+          })
           .from(schema.warehouseItemStocks)
           .where(
             and(
@@ -98,13 +105,44 @@ export class CreateAdjustment {
             400,
           );
         }
+        resultingQuantity = decremented.newQuantity;
+        minStock = stockRow[0].minStock;
       } else {
-        await upsertIncrementStock(
+        const upserted = await upsertIncrementStock(
           tx as unknown as DB,
           input.itemId,
           input.warehouseId,
           input.quantity,
         );
+        resultingQuantity = upserted.quantity;
+        const stockRow = await tx
+          .select({ minStock: schema.warehouseItemStocks.minStock })
+          .from(schema.warehouseItemStocks)
+          .where(
+            and(
+              eq(schema.warehouseItemStocks.itemId, input.itemId),
+              eq(schema.warehouseItemStocks.warehouseId, input.warehouseId),
+            ),
+          )
+          .limit(1);
+        minStock = stockRow[0]?.minStock ?? "0";
+      }
+
+      if (input.direction === "out") {
+        await onSaleCreated(tx as unknown as DB, {
+          branchId: input.branchId,
+          itemId: input.itemId,
+          itemName: item.name,
+          newQuantity: resultingQuantity,
+          minStock,
+        });
+      } else {
+        await onStockIncreased(tx as unknown as DB, {
+          branchId: input.branchId,
+          itemId: input.itemId,
+          newQuantity: resultingQuantity,
+          minStock,
+        });
       }
 
       const signedQty =
