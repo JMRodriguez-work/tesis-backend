@@ -17,6 +17,7 @@ import { registerProviderOrderRoutes } from './modules/provider-orders/infra/htt
 import { registerProviderRoutes } from './modules/providers/infra/http/providers.router'
 import { registerRecommendationRoutes } from './modules/recommendations/infra/http/recommendations.router'
 import { registerStockMovementRoutes } from './modules/stock-movements/infra/http/stock-movements.router'
+import { registerDashboardRoutes } from './modules/dashboard/infra/http/dashboard.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -35,6 +36,7 @@ registerAuthRoutes(app)
 registerOnboardingRoutes(app)
 registerBranchRoutes(app)
 registerCustomerRoutes(app)
+registerDashboardRoutes(app)
 registerItemCategoryRoutes(app)
 registerItemRoutes(app)
 registerOrganizationRoutes(app)

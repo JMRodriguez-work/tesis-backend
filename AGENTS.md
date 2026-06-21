@@ -82,6 +82,7 @@ src/
 │   ├── users/
 │   ├── organizations/
 │   ├── recommendations/
+│   ├── dashboard/
 │   └── external-data/
 └── shared/
     ├── db/
@@ -116,6 +117,7 @@ src/
 | `providers` | providers |
 | `provider-orders` | provider_orders, provider_order_items |
 | `recommendations` | recommendations |
+| `dashboard` | — (read-only, queries analíticas sobre sales/items) |
 | `external-data` | external_data_sources |
 
 ### Scope-by-branch: cómo se indica la sucursal en cada request
@@ -1040,6 +1042,7 @@ import { registerStockMovementRoutes } from './modules/stock-movements/infra/htt
 import { registerUserRoutes } from './modules/users/infra/http/users.router'
 import { registerUnitRoutes } from './modules/units/infra/http/units.router'
 import { registerRecommendationRoutes } from './modules/recommendations/infra/http/recommendations.router'
+import { registerDashboardRoutes } from './modules/dashboard/infra/http/dashboard.router'
 import { registerExternalDataRoutes } from './modules/external-data/infra/http/external-data.router'
 
 // App top-level: se ejecuta UNA vez por isolate
@@ -1062,6 +1065,7 @@ registerStockMovementRoutes(app)
 registerUserRoutes(app)
 registerUnitRoutes(app)
 registerRecommendationRoutes(app)
+registerDashboardRoutes(app)
 registerExternalDataRoutes(app)
 
 // Health check sin auth
