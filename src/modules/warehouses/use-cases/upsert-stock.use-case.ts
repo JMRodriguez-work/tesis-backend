@@ -4,6 +4,9 @@ import type { DB } from '../../../shared/db'
 import * as schema from '../../../shared/db/schema'
 import { findWarehouseBranchAssignment, upsertItemWarehouseStock } from '../infra/repository/warehouse.repository'
 import { ADMIN_ROLE_ID, type ScopeInput } from './resolve-warehouse-access'
+import { createStockMovement } from '../../stock-movements/infra/repository/stock-movement.repository'
+import { onSaleCreated } from '../../recommendations/triggers/on-sale-created'
+import { onStockIncreased } from '../../recommendations/triggers/on-stock-increased'
 
 export type UpsertStockInput = ScopeInput & {
   warehouseId: string
@@ -52,12 +55,90 @@ export class UpsertStock {
       }
     }
 
-    const result = await upsertItemWarehouseStock(this.db, input.itemId, input.warehouseId, {
-      quantity: input.quantity,
-      ...(input.minStock !== undefined ? { minStock: input.minStock } : {}),
+    const previousStock = await this.db
+      .select({
+        id: schema.warehouseItemStocks.id,
+        quantity: schema.warehouseItemStocks.quantity,
+        minStock: schema.warehouseItemStocks.minStock,
+      })
+      .from(schema.warehouseItemStocks)
+      .where(
+        and(
+          eq(schema.warehouseItemStocks.itemId, input.itemId),
+          eq(schema.warehouseItemStocks.warehouseId, input.warehouseId),
+        ),
+      )
+      .limit(1)
+      .then((r) => r[0] ?? null)
+
+    const previousQuantity = previousStock ? Number(previousStock.quantity) : 0
+    const newQuantity = Number(input.quantity)
+    const delta = newQuantity - previousQuantity
+
+    const result = await this.db.transaction(async (tx) => {
+      const upserted = await upsertItemWarehouseStock(
+        tx as unknown as DB,
+        input.itemId,
+        input.warehouseId,
+        {
+          quantity: input.quantity,
+          ...(input.minStock !== undefined ? { minStock: input.minStock } : {}),
+        },
+      )
+
+      if (!upserted) {
+        throw new ApiError('No se pudo guardar el stock', 500)
+      }
+
+      if (delta !== 0) {
+        const isIncrement = delta > 0
+        const signedQty = delta.toString()
+        const [created] = await tx
+          .insert(schema.stockMovements)
+          .values({
+            branchId: item.branchId,
+            itemId: input.itemId,
+            fromWarehouseId: isIncrement ? null : input.warehouseId,
+            toWarehouseId: isIncrement ? input.warehouseId : null,
+            createdBy: input.userId ?? '',
+            type: 'adjustment',
+            quantity: signedQty,
+            referenceId: null,
+            referenceType: 'manual',
+            notes: previousStock
+              ? 'Ajuste manual vía upsert-stock'
+              : 'Stock inicial vía upsert-stock',
+          })
+          .returning()
+
+        if (!created) {
+          throw new ApiError('No se pudo crear el movimiento de auditoría', 500)
+        }
+
+        const effectiveMinStock =
+          input.minStock !== undefined ? input.minStock : (upserted.minStock ?? '0')
+
+        if (isIncrement) {
+          await onStockIncreased(tx as unknown as DB, {
+            branchId: item.branchId,
+            itemId: input.itemId,
+            newQuantity: input.quantity,
+            minStock: effectiveMinStock,
+          })
+        } else {
+          await onSaleCreated(tx as unknown as DB, {
+            branchId: item.branchId,
+            itemId: input.itemId,
+            itemName: item.name,
+            newQuantity: input.quantity,
+            minStock: effectiveMinStock,
+          })
+        }
+      }
+
+      return upserted
     })
 
-    if (!result) throw new ApiError('No se pudo guardar el stock', 500)
     return result
   }
 }

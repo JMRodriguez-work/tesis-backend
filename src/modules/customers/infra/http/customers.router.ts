@@ -25,6 +25,56 @@ import {
 } from "./customers.schemas";
 
 export function registerCustomerRoutes(app: AppType) {
+  // IMPORTANT: `/customers/segments` must be registered BEFORE
+  // `/customers/{id}` so Hono doesn't match the literal "segments" as
+  // a UUID param and reject it with 400.
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/api/v1/customers/segments",
+      tags: ["Customers"],
+      summary: "Segmentación de clientes por comportamiento",
+      description:
+        "Clasifica customers según frecuencia, valor y recencia. Filtros: ?segment= ?branchId= ?page= ?limit=. Restringido a Admin/Manager: clasifica según valor monetario.",
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
+      security: [{ cookieAuth: [] }],
+      request: { query: segmentsQuerySchema },
+      responses: {
+        200: {
+          description: "Segmentos",
+          content: {
+            "application/json": { schema: segmentsResponseSchema },
+          },
+        },
+        400: { description: "branchId inválido" },
+        401: { description: "No autenticado" },
+        403: { description: "No autorizado" },
+      },
+    }),
+    async (c) => {
+      const user = c.get("user");
+      const db = c.get("db");
+      const query = c.req.valid("query");
+      const result = await new GetCustomerSegments(db).execute({
+        userRoleId: user.roleId,
+        userBranchId: user.branchId,
+        userOrganizationId: user.organizationId,
+        requestedBranchId: query.branchId ?? null,
+        segment: query.segment,
+        page: query.page,
+        limit: query.limit,
+      });
+      return c.json(
+        new ApiResponse({
+          data: result,
+          message: "Segmentos de clientes",
+          status: 200,
+        }),
+        200,
+      );
+    },
+  );
+
   app.openapi(
     createRoute({
       method: "get",
@@ -318,49 +368,4 @@ export function registerCustomerRoutes(app: AppType) {
     },
   );
 
-  app.openapi(
-    createRoute({
-      method: "get",
-      path: "/api/v1/customers/segments",
-      tags: ["Customers"],
-      summary: "Segmentación de clientes por comportamiento",
-      description:
-        "Clasifica customers según frecuencia, valor y recencia. Filtros: ?segment= ?branchId= ?page= ?limit=. Restringido a Admin/Manager: clasifica según valor monetario.",
-      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
-      security: [{ cookieAuth: [] }],
-      request: { query: segmentsQuerySchema },
-      responses: {
-        200: {
-          description: "Segmentos",
-          content: {
-            "application/json": { schema: segmentsResponseSchema },
-          },
-        },
-        400: { description: "branchId inválido" },
-        401: { description: "No autenticado" },
-      },
-    }),
-    async (c) => {
-      const user = c.get("user");
-      const db = c.get("db");
-      const query = c.req.valid("query");
-      const result = await new GetCustomerSegments(db).execute({
-        userRoleId: user.roleId,
-        userBranchId: user.branchId,
-        userOrganizationId: user.organizationId,
-        requestedBranchId: query.branchId ?? null,
-        segment: query.segment,
-        page: query.page,
-        limit: query.limit,
-      });
-      return c.json(
-        new ApiResponse({
-          data: result,
-          message: "Segmentos de clientes",
-          status: 200,
-        }),
-        200,
-      );
-    },
-  );
 }

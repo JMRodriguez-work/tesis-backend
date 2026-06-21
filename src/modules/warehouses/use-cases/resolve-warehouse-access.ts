@@ -9,6 +9,7 @@ export type ScopeInput = {
   userRoleId: number | null
   userBranchId: string | null
   userOrganizationId: string | null
+  userId?: string
 }
 
 /**

@@ -265,13 +265,18 @@ export class CreateSale {
         });
       }
 
-      return created;
+      // Enrich inside the same transaction to avoid a window where the
+      // sale exists but the post-tx `findSaleById` fails (e.g. transient
+      // DB error) — which would previously return 500 with a half-written
+      // sale visible to the client.
+      const enriched = await findSaleById(tx as unknown as DB, created.id);
+      if (!enriched) {
+        throw new ApiError("No se pudo recuperar la venta creada", 500);
+      }
+      return enriched;
     });
 
-    const enriched = await findSaleById(this.db, sale.id);
-    if (!enriched)
-      throw new ApiError("No se pudo recuperar la venta creada", 500);
-    return enriched;
+    return sale;
   }
 
   private async loadIpcContext(): Promise<IpcContext | null> {

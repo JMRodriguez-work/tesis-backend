@@ -180,6 +180,7 @@ export async function findItemByBarcode(
       and(
         eq(schema.items.barcode, barcode),
         isNull(schema.items.deletedAt),
+        eq(schema.items.isActive, true),
       ),
     )
     .limit(1)

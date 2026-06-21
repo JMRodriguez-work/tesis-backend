@@ -447,6 +447,7 @@ export function registerWarehouseRoutes(app: AppType) {
         userRoleId: user.roleId,
         userBranchId: user.branchId,
         userOrganizationId: user.organizationId,
+        userId: user.id,
         warehouseId: id,
         itemId: body.itemId,
         quantity: body.quantity,
