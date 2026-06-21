@@ -9,6 +9,7 @@ import { registerBranchRoutes } from './modules/branches/infra/http/branches.rou
 import { registerUserRoutes } from './modules/users/infra/http/users.router'
 import { registerUnitRoutes } from './modules/units/infra/http/units.router'
 import { registerItemCategoryRoutes } from './modules/item-categories/infra/http/item-categories.router'
+import { registerItemRoutes } from './modules/items/infra/http/items.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -27,6 +28,7 @@ registerAuthRoutes(app)
 registerOnboardingRoutes(app)
 registerBranchRoutes(app)
 registerItemCategoryRoutes(app)
+registerItemRoutes(app)
 registerOrganizationRoutes(app)
 registerUnitRoutes(app)
 registerUserRoutes(app)
