@@ -11,6 +11,7 @@ import { registerUnitRoutes } from './modules/units/infra/http/units.router'
 import { registerItemCategoryRoutes } from './modules/item-categories/infra/http/item-categories.router'
 import { registerItemRoutes } from './modules/items/infra/http/items.router'
 import { registerWarehouseRoutes } from './modules/warehouses/infra/http/warehouses.router'
+import { registerCustomerRoutes } from './modules/customers/infra/http/customers.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -28,6 +29,7 @@ mountBetterAuth(app)
 registerAuthRoutes(app)
 registerOnboardingRoutes(app)
 registerBranchRoutes(app)
+registerCustomerRoutes(app)
 registerItemCategoryRoutes(app)
 registerItemRoutes(app)
 registerOrganizationRoutes(app)
