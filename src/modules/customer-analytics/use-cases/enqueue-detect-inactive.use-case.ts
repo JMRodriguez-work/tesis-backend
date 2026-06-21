@@ -8,6 +8,7 @@ import {
 
 export type EnqueueDetectInactiveInput = ResolveCustomerAnalyticsScopeInput & {
   days: number;
+  triggeredBy: string;
 };
 
 export type EnqueueDetectInactiveResult = {
@@ -29,6 +30,10 @@ export class EnqueueDetectInactive {
       throw new ApiError("No autorizado", 403);
     }
 
+    if (!input.triggeredBy) {
+      throw new ApiError("No autorizado", 403);
+    }
+
     const jobId = randomUUID();
 
     await this.env.ANALYTICS_QUEUE.send({
@@ -37,7 +42,7 @@ export class EnqueueDetectInactive {
       organizationId: scope.organizationId,
       branchId: scope.branchId,
       days: input.days,
-      triggeredBy: "", // populated by router from the authed user
+      triggeredBy: input.triggeredBy,
       triggeredAt: new Date().toISOString(),
     });
 

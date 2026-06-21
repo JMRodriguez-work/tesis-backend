@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { ApiResponse } from "../../../../shared/http/api-response";
 import { authMiddleware } from "../../../../shared/auth";
+import { roleGuard } from "../../../../shared/auth/role-guard";
 import type { AppType } from "../../../../shared/types/app";
 import { ListNotifications } from "../../use-cases/list-notifications.use-case";
 import { MarkAllNotificationsRead } from "../../use-cases/mark-all-notifications-read.use-case";
@@ -65,8 +66,9 @@ export function registerNotificationRoutes(app: AppType) {
       path: "/api/v1/notifications/recommendations/{id}/read",
       tags: ["Notifications"],
       summary: "Marcar recomendación como leída",
-      description: "Idempotente. Cross-org/branch → 404.",
-      middleware: [authMiddleware] as const,
+      description:
+        "Idempotente. Cross-org/branch → 404. Restringido a Admin/Manager: no permitir que un Employee silencie notificaciones operativas cerrándolas.",
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: notificationIdParamSchema },
       responses: {
@@ -109,8 +111,8 @@ export function registerNotificationRoutes(app: AppType) {
       summary:
         "Marcar todas las recomendaciones pending de la branch como leídas",
       description:
-        "Idempotente. Admin: indicar ?branchId= en query. Manager/Employee: marca las de su branch.",
-      middleware: [authMiddleware] as const,
+        "Idempotente. Admin: indicar ?branchId= en query. Manager/Employee: marca las de su branch. Restringido a Admin/Manager.",
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listNotificationsQuerySchema },
       responses: {

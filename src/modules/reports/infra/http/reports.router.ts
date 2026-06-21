@@ -1,5 +1,6 @@
 import { createRoute } from '@hono/zod-openapi'
 import { authMiddleware } from '../../../../shared/auth'
+import { roleGuard } from '../../../../shared/auth/role-guard'
 import { ApiResponse } from '../../../../shared/http/api-response'
 import type { AppType } from '../../../../shared/types/app'
 import { GetCategoryDistribution } from '../../use-cases/get-category-distribution.use-case'
@@ -27,7 +28,7 @@ export function registerReportRoutes(app: AppType) {
       summary: 'Tendencia de ventas agrupada por día/semana/mes',
       description:
         'HU-029. Default: últimos 30 días, interval=day. Cap de buckets: 366/104/60 (day/week/month).',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: salesTrendQuerySchema },
       responses: {
@@ -68,7 +69,7 @@ export function registerReportRoutes(app: AppType) {
       summary: 'Timeline de revenue agrupado por día/semana/mes',
       description:
         'Igual que sales-trend pero solo devuelve totalSales (sin transactionCount). Cap de buckets: 366/104/60.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: revenueTimelineQuerySchema },
       responses: {
@@ -109,7 +110,7 @@ export function registerReportRoutes(app: AppType) {
       summary: 'Top items por revenue o cantidad',
       description:
         'Default: últimos 30 días, sortBy=revenue, limit=20 (max 100).',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: topItemsQuerySchema },
       responses: {
@@ -151,7 +152,7 @@ export function registerReportRoutes(app: AppType) {
       summary: 'Distribución de ventas por categoría',
       description:
         'Default: últimos 30 días. Items sin categoría se agrupan bajo "Sin categoría". Solo categorías con ventas en el período.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: categoryDistributionQuerySchema },
       responses: {

@@ -28,7 +28,7 @@ export function registerProviderRoutes(app: AppType) {
       summary: 'Listar proveedores',
       description:
         'Org-wide. Filtros: search (name, companyName, contactName), isActive.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listProvidersQuerySchema },
       responses: {
@@ -64,7 +64,7 @@ export function registerProviderRoutes(app: AppType) {
       tags: ['Providers'],
       summary: 'Obtener proveedor por ID',
       description: 'Cross-org → 404.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: providerIdParamSchema },
       responses: {

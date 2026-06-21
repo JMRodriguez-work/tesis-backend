@@ -76,8 +76,8 @@ export function registerSaleRoutes(app: AppType) {
       tags: ['Sales'],
       summary: 'Listar ventas (historial)',
       description:
-        'Default: desde inicio del día actual. Ordenado por createdAt desc. includeCancelled default false.',
-      middleware: [authMiddleware] as const,
+        'Default: desde inicio del día actual. Ordenado por createdAt desc. includeCancelled default false. Restringido a Admin/Manager: muestra totales, descuentos, cancellationReason.',
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listSalesQuerySchema },
       responses: {
@@ -160,8 +160,9 @@ export function registerSaleRoutes(app: AppType) {
       path: '/api/v1/sales/{id}',
       tags: ['Sales'],
       summary: 'Detalle de una venta',
-      description: 'Cross-org/branch → 404.',
-      middleware: [authMiddleware] as const,
+      description:
+        'Cross-org/branch → 404. Restringido a Admin/Manager: muestra totales, descuentos, cancellationReason.',
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: saleIdParamSchema },
       responses: {

@@ -28,8 +28,8 @@ export function registerExternalDataRoutes(app: AppType) {
       tags: ["ExternalData"],
       summary: "Listar fuentes de datos externos",
       description:
-        "HU-030/HU-031. Devuelve las fuentes externas configuradas. Soporta filtros ?isActive=true|false (default: solo activas) y ?type=wholesale_prices|search_trends|seasonality.",
-      middleware: [authMiddleware] as const,
+        "HU-030/HU-031. Devuelve las fuentes externas configuradas. Soporta filtros ?isActive=true|false (default: solo activas) y ?type=wholesale_prices|search_trends|seasonality. Restringido a Admin/Manager: el response sanitiza `authConfig` (muestra solo que existe, no sus valores).",
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listSourcesQuerySchema },
       responses: {
@@ -66,8 +66,8 @@ export function registerExternalDataRoutes(app: AppType) {
       tags: ["ExternalData"],
       summary: "Detalle de una fuente externa",
       description:
-        "Devuelve la fuente con su data, lastFetchedAt, lastError y authConfig. 404 si no existe.",
-      middleware: [authMiddleware] as const,
+        "Devuelve la fuente con su data, lastFetchedAt, lastError y authConfig sanitizado (solo flags de existencia, no los valores). 404 si no existe. Restringido a Admin/Manager.",
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: externalDataSourceIdParamSchema },
       responses: {

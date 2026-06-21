@@ -49,6 +49,7 @@ export function registerCustomerAnalyticsRoutes(app: AppType) {
         userOrganizationId: user.organizationId,
         requestedBranchId: body.branchId ?? null,
         days: body.days,
+        triggeredBy: user.id,
       });
       return c.json(
         new ApiResponse({

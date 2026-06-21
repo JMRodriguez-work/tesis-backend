@@ -78,7 +78,7 @@ export function registerProviderOrderRoutes(app: AppType) {
       summary: 'Listar órdenes a proveedores',
       description:
         'Filtros: branchId, providerId, status, from, to. Ordenado por createdAt desc.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listProviderOrdersQuerySchema },
       responses: {
@@ -123,7 +123,7 @@ export function registerProviderOrderRoutes(app: AppType) {
       tags: ['ProviderOrders'],
       summary: 'Obtener orden por ID',
       description: 'Cross-org/branch → 404.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: providerOrderIdParamSchema },
       responses: {

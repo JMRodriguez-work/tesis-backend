@@ -21,6 +21,22 @@ export type AuthConfig = {
   queryParams?: Record<string, string>;
 };
 
+export type SanitizedAuthConfig = {
+  hasHeaders: boolean;
+  hasQueryParams: boolean;
+};
+
+export function sanitizeAuthConfig(
+  config: AuthConfig | null,
+): SanitizedAuthConfig | null {
+  if (!config) return null;
+  return {
+    hasHeaders: !!config.headers && Object.keys(config.headers).length > 0,
+    hasQueryParams:
+      !!config.queryParams && Object.keys(config.queryParams).length > 0,
+  };
+}
+
 export type MergedExternalData = {
   type: ExternalDataSourceType;
   fetchedAt: string;

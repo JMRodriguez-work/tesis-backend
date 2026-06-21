@@ -43,7 +43,7 @@ export function registerStockMovementRoutes(app: AppType) {
       summary: 'Listar movimientos de stock',
       description:
         'Historial general. Filtros: itemId, type, branchId (admin), warehouseId, referenceType, referenceId, from, to.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listStockMovementsQuerySchema },
       responses: {
@@ -92,7 +92,7 @@ export function registerStockMovementRoutes(app: AppType) {
       summary: 'Items bajo nivel crítico de stock',
       description:
         'Devuelve items con quantity < minStock en al menos un warehouse asignado a la branch. Base para HU-017.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listStockMovementsQuerySchema.pick({ branchId: true }) },
       responses: {
@@ -129,7 +129,7 @@ export function registerStockMovementRoutes(app: AppType) {
       tags: ['StockMovements'],
       summary: 'Obtener movimiento por ID',
       description: 'Cross-org/branch → 404.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: stockMovementIdParamSchema },
       responses: {
@@ -170,7 +170,7 @@ export function registerStockMovementRoutes(app: AppType) {
       summary: 'Historial de stock de un item',
       description:
         'Devuelve los movimientos del item con runningBalance calculado (total del item, o del warehouse si se filtra).',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: itemIdParamSchema, query: itemStockHistoryQuerySchema },
       responses: {
@@ -214,7 +214,7 @@ export function registerStockMovementRoutes(app: AppType) {
       tags: ['StockMovements'],
       summary: 'Movimientos de un depósito (origen o destino)',
       description: 'Filtra movimientos donde fromWarehouseId=id OR toWarehouseId=id.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: warehouseIdParamSchema, query: listStockMovementsQuerySchema },
       responses: {

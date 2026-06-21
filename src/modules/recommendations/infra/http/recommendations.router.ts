@@ -26,7 +26,7 @@ export function registerRecommendationRoutes(app: AppType) {
       summary: 'Listar recomendaciones',
       description:
         'Filtros: branchId (admin), type, status (default pending), itemId. Default status=pending para mostrar solo lo accionable.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listRecommendationsQuerySchema },
       responses: {
@@ -70,7 +70,7 @@ export function registerRecommendationRoutes(app: AppType) {
       tags: ['Recommendations'],
       summary: 'Obtener recomendación por ID',
       description: 'Cross-org/branch → 404.',
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: recommendationIdParamSchema },
       responses: {

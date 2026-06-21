@@ -43,8 +43,8 @@ export function registerWarehouseRoutes(app: AppType) {
       tags: ['Warehouses'],
       summary: 'Listar depósitos',
       description:
-        'Admin: ve todos los de su org. Manager/Employee: solo los asignados a su branch. Filtra isNull(deletedAt).',
-      middleware: [authMiddleware] as const,
+        'Admin: ve todos los de su org. Manager: solo los asignados a su branch. Filtra isNull(deletedAt). Restringido a Admin/Manager.',
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listWarehousesQuerySchema },
       responses: {
@@ -82,8 +82,8 @@ export function registerWarehouseRoutes(app: AppType) {
       tags: ['Warehouses'],
       summary: 'Obtener depósito por ID',
       description:
-        'Cross-org → 404. Manager/Employee solo si está asignado a su branch.',
-      middleware: [authMiddleware] as const,
+        'Cross-org → 404. Manager solo si está asignado a su branch. Restringido a Admin/Manager.',
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: warehouseIdParamSchema },
       responses: {
@@ -309,8 +309,8 @@ export function registerWarehouseRoutes(app: AppType) {
       tags: ['Warehouses'],
       summary: 'Listar stock del depósito',
       description:
-        'Items con quantity, minStock, status (low/ok/out). Manager/Employee solo si el depósito está asignado a su branch.',
-      middleware: [authMiddleware] as const,
+        'Items con quantity, minStock, status (low/ok/out). Manager solo si el depósito está asignado a su branch. Restringido a Admin/Manager: expone inventario completo.',
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: warehouseIdParamSchema, query: listStockQuerySchema },
       responses: {
@@ -347,8 +347,9 @@ export function registerWarehouseRoutes(app: AppType) {
       path: '/api/v1/items/{id}/stock',
       tags: ['Warehouses'],
       summary: 'Stock de un item en todos los depósitos',
-      description: 'Cross-branch/org → 404.',
-      middleware: [authMiddleware] as const,
+      description:
+        'Cross-branch/org → 404. Restringido a Admin/Manager: expone stock estratégico cross-warehouse.',
+      middleware: [authMiddleware, roleGuard(['Admin', 'Manager'])] as const,
       security: [{ cookieAuth: [] }],
       request: { params: itemIdParamSchema },
       responses: {

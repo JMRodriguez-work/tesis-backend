@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import { authMiddleware } from "../../../../shared/auth";
+import { roleGuard } from "../../../../shared/auth/role-guard";
 import { ApiResponse } from "../../../../shared/http/api-response";
 import type { AppType } from "../../../../shared/types/app";
 import { GetInactiveCustomers } from "../../../customer-analytics/use-cases/get-inactive-customers.use-case";
@@ -23,7 +24,7 @@ export function registerDashboardRoutes(app: AppType) {
       summary: "Métricas de ventas (today / thisWeek / previousWeek + delta)",
       description:
         "HU-027. Devuelve totales, cantidad de transacciones y ticket promedio para hoy, esta semana rolling 7d, y la semana anterior. Incluye deltas porcentuales.",
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: salesSummaryQuerySchema },
       responses: {
@@ -64,7 +65,7 @@ export function registerDashboardRoutes(app: AppType) {
       summary: "Rotación de productos (cantidad vendida en el período)",
       description:
         "HU-028. Items ordenados por cantidad vendida. Default: últimos 30 días. Filtros: from, to, categoryId, includeZeroSales, branchId (admin).",
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: productRotationQuerySchema },
       responses: {
@@ -113,7 +114,7 @@ export function registerDashboardRoutes(app: AppType) {
       summary: "Clientes inactivos con alerta activa (HU-025)",
       description:
         "Lista de customers que tienen una recommendation `retention` pending, con datos de su última compra y días sin comprar.",
-      middleware: [authMiddleware] as const,
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: inactiveCustomersQuerySchema },
       responses: {

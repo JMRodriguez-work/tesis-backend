@@ -275,8 +275,8 @@ export function registerCustomerRoutes(app: AppType) {
       tags: ["Customers"],
       summary: "Historial de compras del cliente",
       description:
-        "Lista de ventas del cliente + resumen acumulado (totalSpent, purchaseCount, lastPurchaseAt, averageTicket). Cross-org/branch → 404.",
-      middleware: [authMiddleware] as const,
+        "Lista de ventas del cliente + resumen acumulado (totalSpent, purchaseCount, lastPurchaseAt, averageTicket). Cross-org/branch → 404. Restringido a Admin/Manager: incluye totales financieros del cliente.",
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: {
         params: customerIdParamSchema,
@@ -325,8 +325,8 @@ export function registerCustomerRoutes(app: AppType) {
       tags: ["Customers"],
       summary: "Segmentación de clientes por comportamiento",
       description:
-        "Clasifica customers según frecuencia, valor y recencia. Filtros: ?segment= ?branchId= ?page= ?limit=",
-      middleware: [authMiddleware] as const,
+        "Clasifica customers según frecuencia, valor y recencia. Filtros: ?segment= ?branchId= ?page= ?limit=. Restringido a Admin/Manager: clasifica según valor monetario.",
+      middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: segmentsQuerySchema },
       responses: {
