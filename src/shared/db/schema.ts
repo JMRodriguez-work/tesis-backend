@@ -10,7 +10,9 @@ import {
   jsonb,
   primaryKey,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // ─── Better Auth (tablas base) ───────────────────────────────────────────────
 // Better Auth genera y mantiene: user, session, account, verification.
@@ -127,24 +129,32 @@ export const itemCategories = pgTable("item_categories", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const items = pgTable("items", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  branchId: uuid("branch_id")
-    .notNull()
-    .references(() => branches.id),
-  categoryId: uuid("category_id").references(() => itemCategories.id),
-  baseUnitId: integer("base_unit_id").references(() => units.id),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  purchasePrice: decimal("purchase_price", { precision: 15, scale: 2 }),
-  salePrice: decimal("sale_price", { precision: 15, scale: 2 }),
-  code: text("code"),
-  barcode: text("barcode"),
-  isActive: boolean("is_active").notNull().default(true),
-  deletedAt: timestamp("deleted_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const items = pgTable(
+  "items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    categoryId: uuid("category_id").references(() => itemCategories.id),
+    baseUnitId: integer("base_unit_id").references(() => units.id),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    purchasePrice: decimal("purchase_price", { precision: 15, scale: 2 }),
+    salePrice: decimal("sale_price", { precision: 15, scale: 2 }),
+    code: text("code"),
+    barcode: text("barcode"),
+    isActive: boolean("is_active").notNull().default(true),
+    deletedAt: timestamp("deleted_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    barcodeUniqueIdx: uniqueIndex("items_barcode_unique_idx")
+      .on(t.barcode)
+      .where(sql`${t.deletedAt} IS NULL AND ${t.barcode} IS NOT NULL`),
+  }),
+);
 
 export const warehouses = pgTable("warehouses", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -175,23 +185,32 @@ export const warehouseBranches = pgTable(
   }),
 );
 
-export const warehouseItemStocks = pgTable("warehouse_item_stocks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  itemId: uuid("item_id")
-    .notNull()
-    .references(() => items.id),
-  warehouseId: uuid("warehouse_id")
-    .notNull()
-    .references(() => warehouses.id),
-  quantity: decimal("quantity", { precision: 15, scale: 3 })
-    .notNull()
-    .default("0"),
-  minStock: decimal("min_stock", { precision: 15, scale: 3 })
-    .notNull()
-    .default("0"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const warehouseItemStocks = pgTable(
+  "warehouse_item_stocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    itemId: uuid("item_id")
+      .notNull()
+      .references(() => items.id),
+    warehouseId: uuid("warehouse_id")
+      .notNull()
+      .references(() => warehouses.id),
+    quantity: decimal("quantity", { precision: 15, scale: 3 })
+      .notNull()
+      .default("0"),
+    minStock: decimal("min_stock", { precision: 15, scale: 3 })
+      .notNull()
+      .default("0"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    itemWarehouseUniqueIdx: uniqueIndex("warehouse_item_stocks_item_warehouse_unique_idx").on(
+      t.itemId,
+      t.warehouseId,
+    ),
+  }),
+);
 
 export const stockMovements = pgTable("stock_movements", {
   id: uuid("id").primaryKey().defaultRandom(),

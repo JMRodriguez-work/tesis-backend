@@ -10,6 +10,7 @@ import type {
   AuthConfig,
   FetchExternalDataResult,
 } from "../domain/external-data.entity";
+import { sanitizeUrl } from "../domain/sanitize-url";
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -119,7 +120,7 @@ export class RunFetchExternalData {
 
     if (!response.ok) {
       throw new Error(
-        `Fetch failed: ${response.status} ${response.statusText} (url=${finalUrl})`,
+        `Fetch failed: ${response.status} ${response.statusText} (url=${sanitizeUrl(finalUrl)})`,
       );
     }
 

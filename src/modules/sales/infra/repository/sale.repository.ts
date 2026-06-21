@@ -555,13 +555,17 @@ export async function atomicDecrementStock(
 /**
  * UPSERT: increments (or creates) the stock row for (item, warehouse).
  * Used during sale cancellation to restore stock.
+ *
+ * Returns `null` if the row couldn't be created/updated (extremely unlikely —
+ * Postgres always returns a row from INSERT ... ON CONFLICT ... RETURNING).
+ * Callers must handle the null case and throw their own ApiError(500).
  */
 export async function upsertIncrementStock(
   db: DB,
   itemId: string,
   warehouseId: string,
   quantity: string,
-): Promise<{ id: string; quantity: string }> {
+): Promise<{ id: string; quantity: string } | null> {
   const { sql } = await import('drizzle-orm')
   const result = await db.execute<{ id: string; quantity: string }>(sql`
     INSERT INTO warehouse_item_stocks (item_id, warehouse_id, quantity, min_stock, created_at, updated_at)
@@ -571,8 +575,7 @@ export async function upsertIncrementStock(
           updated_at = NOW()
     RETURNING id, quantity::text AS quantity
   `)
-  const row = (result.rows as { id: string; quantity: string }[])[0]
-  if (!row) throw new Error('upsertIncrementStock returned no row')
+  const row = (result.rows as { id: string; quantity: string }[])[0] ?? null
   return row
 }
 

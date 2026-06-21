@@ -6,6 +6,7 @@ import {
   countActiveSalesByItem,
   findItemByIdRaw,
   softDeleteItem,
+  sumStockByItem,
 } from '../infra/repository/item.repository'
 import { ADMIN_ROLE_ID, type ResolveItemBranchInput } from './resolve-item-branch'
 
@@ -46,6 +47,14 @@ export class SoftDeleteItem {
     if (activeSales > 0) {
       throw new ApiError(
         `No se puede eliminar el item porque tiene ${activeSales} venta(s) activa(s) asociada(s). Desactivá o cancelá las ventas primero`,
+        400,
+      )
+    }
+
+    const totalStock = await sumStockByItem(this.db, input.id)
+    if (Number(totalStock) > 0) {
+      throw new ApiError(
+        `No se puede eliminar el item porque tiene stock total ${totalStock} en los depósitos. Ajustá el stock a 0 o transferí la mercadería antes`,
         400,
       )
     }

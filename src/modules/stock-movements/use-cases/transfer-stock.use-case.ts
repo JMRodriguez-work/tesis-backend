@@ -13,6 +13,7 @@ import {
   findWarehouseBranchAssignment,
   findWarehouseByIdRaw,
 } from "../infra/repository/stock-movement.repository";
+import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
 
 export type TransferStockInput = {
   branchId: string;
@@ -103,8 +104,11 @@ export class TransferStock {
     }
 
     const movement = await this.db.transaction(async (tx) => {
-      const fromStock = await tx
-        .select({ id: schema.warehouseItemStocks.id })
+      const fromStockRow = await tx
+        .select({
+          id: schema.warehouseItemStocks.id,
+          minStock: schema.warehouseItemStocks.minStock,
+        })
         .from(schema.warehouseItemStocks)
         .where(
           and(
@@ -113,7 +117,7 @@ export class TransferStock {
           ),
         )
         .limit(1);
-      if (!fromStock[0]) {
+      if (!fromStockRow[0]) {
         throw new ApiError(
           "No hay registro de stock del item en el depósito de origen",
           400,
@@ -122,7 +126,7 @@ export class TransferStock {
 
       const decremented = await atomicDecrementStock(
         tx as unknown as DB,
-        fromStock[0].id,
+        fromStockRow[0].id,
         input.quantity,
       );
       if (!decremented) {
@@ -132,12 +136,42 @@ export class TransferStock {
         );
       }
 
-      await upsertIncrementStock(
+      const upserted = await upsertIncrementStock(
         tx as unknown as DB,
         input.itemId,
         input.toWarehouseId,
         input.quantity,
       );
+      if (!upserted) {
+        throw new ApiError(
+          "No se pudo actualizar el stock del depósito de destino",
+          500,
+        );
+      }
+
+      // Cross-module triggers: keep restock recommendations in sync with
+      // the actual stock in each warehouse.
+      //
+      // Source warehouse (decrement): if the resulting quantity is below
+      // the item's minStock, emit a restock recommendation. Same trigger
+      // as `CreateSale` because the semantic is "stock went down".
+      await onSaleCreated(tx as unknown as DB, {
+        branchId: input.branchId,
+        itemId: input.itemId,
+        itemName: item.name,
+        newQuantity: decremented.newQuantity,
+        minStock: fromStockRow[0].minStock,
+      });
+
+      // Destination warehouse: we intentionally do NOT call
+      // `onStockIncreased` here. A transfer between warehouses doesn't
+      // change the total stock of the item — only its distribution. If
+      // the source went below `minStock`, we just created a restock
+      // recommendation in the previous step; we must not immediately
+      // close it from the destination side, because the trigger would
+      // see a positive quantity at the destination (whose `minStock` is
+      // `0` for a freshly-created row, or equal to the source's for an
+      // existing row) and would mark the recommendation as `applied`.
 
       const [created] = await tx
         .insert(schema.stockMovements)

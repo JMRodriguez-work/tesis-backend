@@ -114,6 +114,12 @@ export class CreateAdjustment {
           input.warehouseId,
           input.quantity,
         );
+        if (!upserted) {
+          throw new ApiError(
+            `No se pudo actualizar el stock del item ${input.itemId}`,
+            500,
+          );
+        }
         resultingQuantity = upserted.quantity;
         const stockRow = await tx
           .select({ minStock: schema.warehouseItemStocks.minStock })

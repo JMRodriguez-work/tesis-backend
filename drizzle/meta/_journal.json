@@ -71,6 +71,13 @@
       "when": 1782071820787,
       "tag": "0009_read_at",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782076779166,
+      "tag": "0010_indexes",
+      "breakpoints": true
     }
   ]
 }

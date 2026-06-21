@@ -96,6 +96,12 @@ export class CancelSale {
           warehouseId,
           it.quantity,
         );
+        if (!upserted) {
+          throw new ApiError(
+            `No se pudo restaurar el stock del item ${it.itemId}`,
+            500,
+          );
+        }
         await tx.insert(schema.stockMovements).values({
           branchId: sale.branchId,
           itemId: it.itemId,

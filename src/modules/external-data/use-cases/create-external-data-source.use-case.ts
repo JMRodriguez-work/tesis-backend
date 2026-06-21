@@ -27,12 +27,18 @@ export class CreateExternalDataSource {
       );
     }
 
-    return createSource(this.db, {
+    const created = await createSource(this.db, {
       name: input.name,
       type: input.type,
       url: input.url ?? null,
       authConfig: (input.authConfig ?? null) as never,
       isActive: input.isActive ?? true,
     });
+
+    if (!created) {
+      throw new ApiError("No se pudo crear la fuente externa", 500);
+    }
+
+    return created;
   }
 }

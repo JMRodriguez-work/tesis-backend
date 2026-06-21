@@ -14,6 +14,7 @@ import {
   type ItemWithRelations,
 } from '../infra/repository/item.repository'
 import { ADMIN_ROLE_ID, type ResolveItemBranchInput } from './resolve-item-branch'
+import { computePricingWarning, type PricingWarning } from '../domain/pricing-warning'
 
 export type UpdateItemInput = ResolveItemBranchInput & {
   id: string
@@ -30,10 +31,15 @@ export type UpdateItemInput = ResolveItemBranchInput & {
   }
 }
 
+export type UpdateItemResult = {
+  item: ItemWithRelations
+  warning: PricingWarning | null
+} | null
+
 export class UpdateItem {
   constructor(private readonly db: DB) {}
 
-  async execute(input: UpdateItemInput): Promise<ItemWithRelations | null> {
+  async execute(input: UpdateItemInput): Promise<UpdateItemResult> {
     const existing = await findItemByIdRaw(this.db, input.id)
     if (!existing) return null
 
@@ -136,12 +142,24 @@ export class UpdateItem {
     if (input.data.isActive !== undefined) patch.isActive = input.data.isActive
 
     if (Object.keys(patch).length === 0) {
-      return findItemById(this.db, input.id)
+      const current = await findItemById(this.db, input.id)
+      if (!current) return null
+      return { item: current, warning: null }
     }
 
     const updated = await updateItem(this.db, input.id, patch)
     if (!updated) return null
 
-    return findItemById(this.db, input.id)
+    const enriched = await findItemById(this.db, input.id)
+    if (!enriched) return null
+
+    const warning = computePricingWarning(enriched.salePrice, enriched.purchasePrice)
+    if (warning) {
+      console.warn(
+        `[items:update] pricing warning: item ${enriched.id} salePrice=${enriched.salePrice} < purchasePrice=${enriched.purchasePrice}`,
+      )
+    }
+
+    return { item: enriched, warning }
   }
 }

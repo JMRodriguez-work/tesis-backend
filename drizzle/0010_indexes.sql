@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "items_barcode_unique_idx" ON "items" USING btree ("barcode") WHERE "items"."deleted_at" IS NULL AND "items"."barcode" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "warehouse_item_stocks_item_warehouse_unique_idx" ON "warehouse_item_stocks" USING btree ("item_id","warehouse_id");

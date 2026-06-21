@@ -92,6 +92,12 @@ export class ReceiveProviderOrder {
           input.warehouseId,
           it.quantity,
         )
+        if (!upserted) {
+          throw new ApiError(
+            `No se pudo actualizar el stock del item ${it.itemId}`,
+            500,
+          )
+        }
         await tx.insert(schema.stockMovements).values({
           branchId: order.branchId,
           itemId: it.itemId,

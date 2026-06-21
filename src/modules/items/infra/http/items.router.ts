@@ -144,7 +144,11 @@ export function registerItemRoutes(app: AppType) {
       if (!item) throw new ApiError('Item no encontrado', 404)
 
       return c.json(
-        new ApiResponse({ data: item, message: 'Item encontrado', status: 200 }),
+        new ApiResponse({
+          data: { item, warning: null },
+          message: 'Item encontrado',
+          status: 200,
+        }),
         200,
       )
     },
@@ -179,7 +183,7 @@ export function registerItemRoutes(app: AppType) {
       const db = c.get('db')
       const body = c.req.valid('json')
 
-      const item = await new CreateItem(db).execute({
+      const result = await new CreateItem(db).execute({
         userRoleId: user.roleId,
         userBranchId: user.branchId,
         userOrganizationId: user.organizationId,
@@ -196,7 +200,7 @@ export function registerItemRoutes(app: AppType) {
       })
 
       return c.json(
-        new ApiResponse({ data: item, message: 'Item creado', status: 201 }),
+        new ApiResponse({ data: result, message: 'Item creado', status: 201 }),
         201,
       )
     },
@@ -234,7 +238,7 @@ export function registerItemRoutes(app: AppType) {
       const { id } = c.req.valid('param')
       const body = c.req.valid('json')
 
-      const item = await new UpdateItem(db).execute({
+      const result = await new UpdateItem(db).execute({
         id,
         userRoleId: user.roleId,
         userBranchId: user.branchId,
@@ -253,10 +257,10 @@ export function registerItemRoutes(app: AppType) {
         },
       })
 
-      if (!item) throw new ApiError('Item no encontrado', 404)
+      if (!result) throw new ApiError('Item no encontrado', 404)
 
       return c.json(
-        new ApiResponse({ data: item, message: 'Item actualizado', status: 200 }),
+        new ApiResponse({ data: result, message: 'Item actualizado', status: 200 }),
         200,
       )
     },

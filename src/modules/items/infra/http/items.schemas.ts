@@ -87,8 +87,18 @@ export const updateItemSchema = z
   })
   .strict()
 
+const pricingWarningSchema = z.object({
+  field: z.literal('salePrice'),
+  message: z.string(),
+  salePrice: z.string(),
+  purchasePrice: z.string(),
+})
+
 export const itemResponseSchema = z.object({
-  data: itemSchema,
+  data: z.object({
+    item: itemSchema,
+    warning: pricingWarningSchema.nullable(),
+  }),
   message: z.string(),
   status: z.number(),
 })

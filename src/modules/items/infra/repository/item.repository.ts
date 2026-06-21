@@ -1,4 +1,4 @@
-import { and, count, eq, ilike, isNull, ne, or, type SQL } from 'drizzle-orm'
+import { and, count, eq, ilike, isNull, ne, or, sum, type SQL } from 'drizzle-orm'
 import type { DB } from '../../../../shared/db'
 import * as schema from '../../../../shared/db/schema'
 
@@ -399,6 +399,24 @@ export async function countActiveSalesByItem(db: DB, itemId: string): Promise<nu
       ),
     )
   return result[0]?.value ?? 0
+}
+
+/**
+ * Sums the `quantity` of all `warehouse_item_stocks` rows for an item,
+ * across every warehouse (including ones from other branches of the same
+ * org). Returns `"0"` if no rows.
+ *
+ * Used by `SoftDeleteItem` to refuse the deletion if there's any stock
+ * left. The merchant must first move the stock out (transfer/adjustment)
+ * to be able to soft-delete the item.
+ */
+export async function sumStockByItem(db: DB, itemId: string): Promise<string> {
+  const result = await db
+    .select({ value: sum(schema.warehouseItemStocks.quantity) })
+    .from(schema.warehouseItemStocks)
+    .where(eq(schema.warehouseItemStocks.itemId, itemId))
+  const v = result[0]?.value
+  return v ?? "0"
 }
 
 export async function createItem(

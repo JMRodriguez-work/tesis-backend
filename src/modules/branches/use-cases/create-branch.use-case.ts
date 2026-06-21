@@ -1,3 +1,4 @@
+import { ApiError } from '../../../shared/http/api-response'
 import type { DB } from '../../../shared/db'
 import { createBranch, findBranchById, type BranchWithRelations } from '../infra/repository/branch.repository'
 
@@ -16,10 +17,10 @@ export class CreateBranch {
       isActive: true,
     })
 
-    if (!created) throw new Error('No se pudo crear la sucursal')
+    if (!created) throw new ApiError('No se pudo crear la sucursal', 500)
 
     const enriched = await findBranchById(this.db, created.id)
-    if (!enriched) throw new Error('No se pudo recuperar la sucursal creada')
+    if (!enriched) throw new ApiError('No se pudo recuperar la sucursal creada', 500)
     return enriched
   }
 }

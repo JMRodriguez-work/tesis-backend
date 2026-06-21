@@ -14,6 +14,7 @@ import {
   resolveItemBranchForWrite,
   type ResolveItemBranchInput,
 } from './resolve-item-branch'
+import { computePricingWarning, type PricingWarning } from '../domain/pricing-warning'
 
 export type CreateItemInput = ResolveItemBranchInput & {
   name: string
@@ -27,10 +28,15 @@ export type CreateItemInput = ResolveItemBranchInput & {
   isActive?: boolean
 }
 
+export type CreateItemResult = {
+  item: ItemWithRelations
+  warning: PricingWarning | null
+}
+
 export class CreateItem {
   constructor(private readonly db: DB) {}
 
-  async execute(input: CreateItemInput): Promise<ItemWithRelations> {
+  async execute(input: CreateItemInput): Promise<CreateItemResult> {
     const { branchId } = await resolveItemBranchForWrite(this.db, input)
 
     const trimmedName = input.name.trim()
@@ -94,10 +100,18 @@ export class CreateItem {
       isActive: input.isActive ?? true,
     })
 
-    if (!created) throw new Error('No se pudo crear el item')
+    if (!created) throw new ApiError('No se pudo crear el item', 500)
 
     const enriched = await findItemById(this.db, created.id)
-    if (!enriched) throw new Error('No se pudo recuperar el item creado')
-    return enriched
+    if (!enriched) throw new ApiError('No se pudo recuperar el item creado', 500)
+
+    const warning = computePricingWarning(enriched.salePrice, enriched.purchasePrice)
+    if (warning) {
+      console.warn(
+        `[items:create] pricing warning: item ${enriched.id} salePrice=${enriched.salePrice} < purchasePrice=${enriched.purchasePrice}`,
+      )
+    }
+
+    return { item: enriched, warning }
   }
 }

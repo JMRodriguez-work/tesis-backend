@@ -163,13 +163,13 @@ export async function countSources(
 export async function createSource(
   db: DB,
   data: typeof schema.externalDataSources.$inferInsert,
-): Promise<ExternalDataSourceRow> {
+): Promise<ExternalDataSourceRow | null> {
   const result = await db
     .insert(schema.externalDataSources)
     .values(data)
     .returning();
   const row = result[0];
-  if (!row) throw new Error("createSource returned no row");
+  if (!row) return null;
   return {
     id: row.id,
     name: row.name,
