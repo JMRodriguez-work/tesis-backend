@@ -17,7 +17,9 @@ import {
   type ResolveSaleBranchInput,
 } from "./resolve-sale-branch";
 import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
+import type { IpcContext } from "../../recommendations/triggers/restock-priority";
 import { onCustomerPurchase } from "../../customer-analytics/triggers/on-customer-purchase";
+import { findLatestActiveByType } from "../../external-data/infra/repository/external-data.repository";
 
 export type CreateSaleItemInput = {
   itemId: string;
@@ -196,6 +198,8 @@ export class CreateSale {
     const totalStr = round2(total);
     const discountStrNorm = round2(discountNum);
 
+    const ipcContext = await this.loadIpcContext();
+
     const sale = await this.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(schema.sales)
@@ -250,6 +254,7 @@ export class CreateSale {
           itemName: it.itemName,
           newQuantity: decremented.newQuantity,
           minStock: it.minStock,
+          ipcContext,
         });
       }
 
@@ -267,5 +272,32 @@ export class CreateSale {
     if (!enriched)
       throw new ApiError("No se pudo recuperar la venta creada", 500);
     return enriched;
+  }
+
+  private async loadIpcContext(): Promise<IpcContext | null> {
+    try {
+      const source = await findLatestActiveByType(this.db, "wholesale_prices");
+      if (!source?.data || typeof source.data !== "object") return null;
+      const data = source.data as {
+        type?: string;
+        payload?: {
+          source?: string;
+          latest?: { period: string; value: number };
+        };
+      };
+      const latest = data.payload?.latest;
+      if (!latest || typeof latest.value !== "number") return null;
+      const sourceName = data.payload?.source ?? source.name;
+      return {
+        latest: { period: latest.period, value: latest.value },
+        source: sourceName,
+      };
+    } catch (err) {
+      console.warn(
+        "[create-sale] failed to load IPC context, continuing without:",
+        err,
+      );
+      return null;
+    }
   }
 }

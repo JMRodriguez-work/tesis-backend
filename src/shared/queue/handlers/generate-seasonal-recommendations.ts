@@ -2,16 +2,8 @@ import type { Pool } from "@neondatabase/serverless";
 import type { Env } from "../../env";
 import type { GenerateSeasonalRecommendationsMessage } from "../types";
 import { closeConsumerDb, createConsumerDb } from "../consumer-db";
+import { GenerateSeasonalRecommendations } from "../../../modules/recommendations/use-cases/run-generate-seasonal.use-case";
 
-/**
- * Handler stub for `generate-seasonal-recommendations`. Phase 3.5-A
- * establishes the queue plumbing (4th job type, dispatcher routing, cron
- * enqueue) but defers the real logic — cross-referencing the latest
- * `seasonality` data with the catalog to produce `seasonal` recommendations
- * — to Phase 3.5-B.
- *
- * Idempotent: re-running with the same jobId is a no-op.
- */
 export async function handleGenerateSeasonalRecommendations(
   msg: GenerateSeasonalRecommendationsMessage,
   env: Env,
@@ -20,8 +12,13 @@ export async function handleGenerateSeasonalRecommendations(
   try {
     const created = createConsumerDb(env.DATABASE_URL);
     pool = created.pool;
+    const useCase = new GenerateSeasonalRecommendations(created.db);
+    const result = await useCase.execute({
+      organizationId: msg.organizationId,
+      branchId: msg.branchId,
+    });
     console.log(
-      `[generate-seasonal-recommendations] jobId=${msg.jobId} orgId=${msg.organizationId ?? "*"} branchId=${msg.branchId ?? "*"} triggeredBy=${msg.triggeredBy} (stub — real logic in 3.5-B)`,
+      `[generate-seasonal-recommendations] jobId=${msg.jobId} orgId=${msg.organizationId ?? "*"} branchId=${msg.branchId ?? "*"} triggeredBy=${msg.triggeredBy} → scanned=${result.scanned} created=${result.created} skipped=${result.skipped}${result.reason ? ` reason=${result.reason}` : ""}`,
     );
   } finally {
     if (pool) {

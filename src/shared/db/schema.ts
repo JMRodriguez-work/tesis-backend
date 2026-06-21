@@ -323,6 +323,7 @@ export const recommendations = pgTable("recommendations", {
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
   expiresAt: timestamp("expires_at"),
+  readAt: timestamp("read_at"),
 }, (t) => ({
   customerTypeStatusIdx: index('recommendations_customer_type_status_idx').on(
     t.customerId,

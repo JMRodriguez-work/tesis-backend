@@ -53,6 +53,7 @@ export const recommendationSchema = z.object({
   status: z.enum(['pending', 'applied', 'dismissed']),
   generatedAt: z.string(),
   expiresAt: z.string().nullable(),
+  readAt: z.string().nullable(),
 })
 
 export const recommendationResponseSchema = z.object({
@@ -76,6 +77,7 @@ const recommendationListRowSchema = z.object({
   status: z.enum(['pending', 'applied', 'dismissed']),
   generatedAt: z.string(),
   expiresAt: z.string().nullable(),
+  readAt: z.string().nullable(),
 })
 
 export const recommendationListResponseSchema = z.object({

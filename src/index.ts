@@ -23,6 +23,7 @@ import { registerDashboardRoutes } from './modules/dashboard/infra/http/dashboar
 import { registerReportRoutes } from './modules/reports/infra/http/reports.router'
 import { registerCustomerAnalyticsRoutes } from './modules/customer-analytics/infra/http/customer-analytics.router'
 import { registerExternalDataRoutes } from './modules/external-data/infra/http/external-data.router'
+import { registerNotificationRoutes } from './modules/notifications/infra/http/notifications.router'
 import { handleScheduledFetchExternalData } from './modules/external-data/triggers/on-cron-fetch-external-data'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
@@ -47,6 +48,7 @@ registerDashboardRoutes(app)
 registerExternalDataRoutes(app)
 registerItemCategoryRoutes(app)
 registerItemRoutes(app)
+registerNotificationRoutes(app)
 registerOrganizationRoutes(app)
 registerProviderOrderRoutes(app)
 registerProviderRoutes(app)

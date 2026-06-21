@@ -16,6 +16,7 @@ export type RecommendationWithRelations = {
   status: RecommendationStatus
   generatedAt: Date
   expiresAt: Date | null
+  readAt: Date | null
 }
 
 export type RecommendationListRow = {
@@ -33,4 +34,5 @@ export type RecommendationListRow = {
   status: RecommendationStatus
   generatedAt: Date
   expiresAt: Date | null
+  readAt: Date | null
 }

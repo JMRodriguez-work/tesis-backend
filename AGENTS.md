@@ -85,7 +85,8 @@ src/
 │   ├── dashboard/
 │   ├── reports/
 │   ├── customer-analytics/           # HU-025 (retention) + HU-026 (segments). Usa Queues para jobs async.
-│   └── external-data/                # HU-030 (IPC) + HU-031 (seasonality). Cron Trigger + Queue. CRUD Admin, parser registry por type, authConfig jsonb.
+│   ├── external-data/                # HU-030 (IPC) + HU-031 (seasonality). Cron Trigger + Queue. CRUD Admin, parser registry por type, authConfig jsonb.
+│   └── notifications/                # HU-035. Wrapper sobre recommendations (read_at) + low stock. Módulo minimal: solo router, schemas, 3 use cases.
 └── shared/
     ├── db/
     │   ├── index.ts                  # createDb() — lazy singleton por isolate (HTTP requests)
@@ -132,6 +133,7 @@ src/
 | `reports` | — (read-only, queries analíticas con date_trunc) |
 | `customer-analytics` | — (read-only + enqueue de jobs async a `ANALYTICS_QUEUE`) |
 | `external-data` | external_data_sources |
+| `notifications` | — (wrapper: recommendations.read_at + stock-movements) |
 
 ### Scope-by-branch: cómo se indica la sucursal en cada request
 
@@ -609,7 +611,7 @@ export default {
 3. Wirear en `shared/queue/dispatcher.ts` (case del switch).
 4. Documentar aquí.
 
-Tipos actuales: `detect-inactive-customers` (3.3 ✅), `fetch-external-data` (3.4 ✅), `send-email` (placeholder 3.5 / HU-003), `generate-seasonal-recommendations` (3.5-A ✅ — stub, lógica real en 3.5-B).
+Tipos actuales: `detect-inactive-customers` (3.3 ✅), `fetch-external-data` (3.4 ✅), `send-email` (placeholder 3.5 / HU-003), `generate-seasonal-recommendations` (3.5-B ✅).
 
 **Idempotencia:** el patrón asume que un job puede ejecutarse más de una vez (retries, concurrencia). Cada handler debe ser idempotente. `RunDetectInactive` lo logra con un `existingSet` que filtra customers que ya tienen recommendation pending.
 
