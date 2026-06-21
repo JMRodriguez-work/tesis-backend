@@ -15,6 +15,7 @@ import { registerCustomerRoutes } from './modules/customers/infra/http/customers
 import { registerSaleRoutes } from './modules/sales/infra/http/sales.router'
 import { registerProviderOrderRoutes } from './modules/provider-orders/infra/http/provider-orders.router'
 import { registerProviderRoutes } from './modules/providers/infra/http/providers.router'
+import { registerStockMovementRoutes } from './modules/stock-movements/infra/http/stock-movements.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -39,6 +40,7 @@ registerOrganizationRoutes(app)
 registerProviderOrderRoutes(app)
 registerProviderRoutes(app)
 registerSaleRoutes(app)
+registerStockMovementRoutes(app)
 registerUnitRoutes(app)
 registerUserRoutes(app)
 registerWarehouseRoutes(app)

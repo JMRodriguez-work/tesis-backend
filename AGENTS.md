@@ -435,6 +435,7 @@ export const stockMovements = pgTable('stock_movements', {
   quantity: decimal('quantity', { precision: 15, scale: 3 }).notNull(),
   referenceId: uuid('reference_id'),               // polimórfico: sale_id | order_id
   referenceType: text('reference_type'),           // 'sale' | 'provider_order' | 'manual'
+  notes: text('notes'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 

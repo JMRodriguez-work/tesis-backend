@@ -207,8 +207,9 @@ export const stockMovements = pgTable("stock_movements", {
     .references(() => user.id),
   type: varchar("type", { length: 20 }).notNull(), // 'in' | 'out' | 'transfer' | 'adjustment'
   quantity: decimal("quantity", { precision: 15, scale: 3 }).notNull(),
-  referenceId: uuid("reference_id"),
-  referenceType: text("reference_type"),
+  referenceId: uuid("reference_id"),               // polimórfico: sale_id | order_id
+  referenceType: text("reference_type"),           // 'sale' | 'provider_order' | 'manual'
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
