@@ -239,6 +239,9 @@ export const sales = pgTable("sales", {
     .notNull()
     .references(() => user.id),
   total: decimal("total", { precision: 15, scale: 2 }).notNull(),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 })
+    .notNull()
+    .default("0"),
   notes: text("notes"),
   isActive: boolean("is_active").notNull().default(true),
   cancellationReason: text("cancellation_reason"),

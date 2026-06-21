@@ -12,6 +12,7 @@ import { registerItemCategoryRoutes } from './modules/item-categories/infra/http
 import { registerItemRoutes } from './modules/items/infra/http/items.router'
 import { registerWarehouseRoutes } from './modules/warehouses/infra/http/warehouses.router'
 import { registerCustomerRoutes } from './modules/customers/infra/http/customers.router'
+import { registerSaleRoutes } from './modules/sales/infra/http/sales.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -33,6 +34,7 @@ registerCustomerRoutes(app)
 registerItemCategoryRoutes(app)
 registerItemRoutes(app)
 registerOrganizationRoutes(app)
+registerSaleRoutes(app)
 registerUnitRoutes(app)
 registerUserRoutes(app)
 registerWarehouseRoutes(app)

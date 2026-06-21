@@ -457,6 +457,9 @@ export const sales = pgTable('sales', {
   customerId: uuid('customer_id').references(() => customers.id),
   createdBy: text('created_by').notNull().references(() => user.id),
   total: decimal('total', { precision: 15, scale: 2 }).notNull(),
+  discountPercent: decimal('discount_percent', { precision: 5, scale: 2 })
+    .notNull()
+    .default('0'),
   notes: text('notes'),
   isActive: boolean('is_active').notNull().default(true),
   cancellationReason: text('cancellation_reason'),
@@ -630,6 +633,8 @@ export async function countBranchesByOrganization(
 - Funciones nombradas con prefijo de tabla (`findBranchById`, `createBranch`, etc.) para legibilidad.
 - Exportar también `branchTable` y `branchIdEq()` para uso dentro de `db.transaction()`.
 - El nombre del archivo usa `branch.repository.ts` (singular), no `branches.repository.ts`, porque la convención del módulo es singular.
+
+**Excepción: decrementos atómicos con SQL raw.** Cuando una operación de escritura deba ser atómica con un *guard* (típicamente: `UPDATE ... SET quantity = quantity - X WHERE id = ? AND quantity >= X`), Drizzle tipado no soporta `columna - x` en SET ni comparaciones numéricas en WHERE de forma portable. En esos casos, el repositorio expone una función que usa `db.execute(sql\`...\`)` con SQL crudo parametrizado. La función sigue aceptando `db | tx` y mantiene la inferencia. Único ejemplo actual: `atomicDecrementStock` y `upsertIncrementStock` en `modules/sales/infra/repository/sale.repository.ts`.
 
 ### 7.2 Use Case
 

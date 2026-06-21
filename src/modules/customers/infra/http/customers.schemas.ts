@@ -77,3 +77,44 @@ export const customerDeleteResponseSchema = z.object({
   message: z.string(),
   status: z.number(),
 })
+
+export const customerSalesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  includeCancelled: z.coerce.boolean().optional().default(true),
+})
+
+const saleListRowSchema = z.object({
+  id: z.string().uuid(),
+  branchId: z.string().uuid(),
+  branchName: z.string(),
+  customerId: z.string().uuid().nullable(),
+  customerName: z.string().nullable(),
+  total: z.string(),
+  discountPercent: z.string(),
+  itemCount: z.number(),
+  status: z.enum(['active', 'cancelled']),
+  createdAt: z.string(),
+})
+
+const customerPurchaseSummarySchema = z.object({
+  totalSpent: z.string(),
+  purchaseCount: z.number(),
+  lastPurchaseAt: z.string().nullable(),
+  averageTicket: z.string(),
+})
+
+export const customerSalesResponseSchema = z.object({
+  data: z.object({
+    data: z.array(saleListRowSchema),
+    summary: customerPurchaseSummarySchema,
+    meta: z.object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    }),
+  }),
+  message: z.string(),
+  status: z.number(),
+})

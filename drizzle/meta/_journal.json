@@ -29,6 +29,13 @@
       "when": 1781745976393,
       "tag": "0003_organization_deleted_at",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782058618509,
+      "tag": "0004_discount_sale",
+      "breakpoints": true
     }
   ]
 }
