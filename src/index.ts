@@ -2,6 +2,8 @@ import { OpenAPIHono } from '@hono/zod-openapi'
 import { setupMiddleware } from './shared/http/middlewares'
 import { dbMiddleware } from './shared/db'
 import { mountBetterAuth } from './shared/auth/mount'
+import { handleQueueBatch } from './shared/queue'
+import type { AnalyticsJobMessage } from './shared/queue'
 import { registerAuthRoutes } from './modules/auth/infra/http/auth.router'
 import { registerOnboardingRoutes } from './modules/onboarding/infra/http/onboarding.router'
 import { registerOrganizationRoutes } from './modules/organizations/infra/http/organizations.router'
@@ -19,6 +21,7 @@ import { registerRecommendationRoutes } from './modules/recommendations/infra/ht
 import { registerStockMovementRoutes } from './modules/stock-movements/infra/http/stock-movements.router'
 import { registerDashboardRoutes } from './modules/dashboard/infra/http/dashboard.router'
 import { registerReportRoutes } from './modules/reports/infra/http/reports.router'
+import { registerCustomerAnalyticsRoutes } from './modules/customer-analytics/infra/http/customer-analytics.router'
 import type { Env } from './shared/env'
 import type { Variables } from './shared/types/app'
 
@@ -37,6 +40,7 @@ registerAuthRoutes(app)
 registerOnboardingRoutes(app)
 registerBranchRoutes(app)
 registerCustomerRoutes(app)
+registerCustomerAnalyticsRoutes(app)
 registerDashboardRoutes(app)
 registerItemCategoryRoutes(app)
 registerItemRoutes(app)
@@ -51,4 +55,20 @@ registerUnitRoutes(app)
 registerUserRoutes(app)
 registerWarehouseRoutes(app)
 
-export default app
+/**
+ * Dual export: the same Worker handles HTTP requests and queue
+ * messages. See AGENTS.md §6.3 for the architecture rationale.
+ *
+ * - `fetch` delegates to the Hono app.
+ * - `queue` is invoked by Cloudflare with a batch of messages from
+ *   `ANALYTICS_QUEUE`. The dispatcher in `shared/queue/dispatcher.ts`
+ *   routes each message to the right handler.
+ */
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    return app.fetch(request, env, ctx)
+  },
+  async queue(batch: MessageBatch<AnalyticsJobMessage>, env: Env, ctx: ExecutionContext) {
+    return handleQueueBatch(batch, env, ctx)
+  },
+} satisfies ExportedHandler<Env, AnalyticsJobMessage>

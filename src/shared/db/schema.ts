@@ -9,6 +9,7 @@ import {
   timestamp,
   jsonb,
   primaryKey,
+  index,
 } from "drizzle-orm/pg-core";
 
 // ─── Better Auth (tablas base) ───────────────────────────────────────────────
@@ -315,13 +316,20 @@ export const recommendations = pgTable("recommendations", {
     .notNull()
     .references(() => branches.id),
   itemId: uuid("item_id").references(() => items.id),
+  customerId: uuid("customer_id").references(() => customers.id),
   type: varchar("type", { length: 50 }).notNull(),
   description: text("description").notNull(),
   priority: varchar("priority", { length: 20 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
   expiresAt: timestamp("expires_at"),
-});
+}, (t) => ({
+  customerTypeStatusIdx: index('recommendations_customer_type_status_idx').on(
+    t.customerId,
+    t.type,
+    t.status,
+  ),
+}));
 
 export const externalDataSources = pgTable("external_data_sources", {
   id: uuid("id").primaryKey().defaultRandom(),

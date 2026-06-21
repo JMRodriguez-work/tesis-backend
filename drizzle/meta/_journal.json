@@ -43,6 +43,13 @@
       "when": 1782061905895,
       "tag": "0005_stock_movement_reference",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782066582221,
+      "tag": "0006_recommendations_fix",
+      "breakpoints": true
     }
   ]
 }

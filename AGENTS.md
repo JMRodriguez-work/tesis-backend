@@ -84,10 +84,11 @@ src/
 │   ├── recommendations/
 │   ├── dashboard/
 │   ├── reports/
+│   ├── customer-analytics/           # HU-025 (retention) + HU-026 (segments). Usa Queues para jobs async.
 │   └── external-data/
 └── shared/
     ├── db/
-    │   ├── index.ts                  # getDb() — lazy singleton por isolate
+    │   ├── index.ts                  # createDb() — lazy singleton por isolate (HTTP requests)
     │   └── schema.ts                 # Schema Drizzle completo (fuente de verdad del modelo)
     ├── auth/
     │   └── index.ts                  # Better Auth setup + authMiddleware
@@ -97,6 +98,15 @@ src/
     │   └── openapi.ts                # setupOpenAPI(), Scalar docs
     ├── env/
     │   └── index.ts                  # type Env — bindings y variables del Worker
+    ├── queue/                        # Cloudflare Queues — productor + consumer en el mismo Worker
+    │   ├── index.ts                  # exports + helpers
+    │   ├── types.ts                  # AnalyticsJobMessage (discriminated union)
+    │   ├── dispatcher.ts             # handleQueueBatch — rutea mensajes a handlers
+    │   ├── consumer-db.ts            # createConsumerDb / closeConsumerDb — pool para handlers
+    │   └── handlers/                  # un archivo por tipo de mensaje
+    │       ├── detect-inactive-customers.ts
+    │       ├── fetch-external-data.ts (placeholder 3.4)
+    │       └── send-email.ts (placeholder 3.5/HU-003)
     └── types/
         └── app.ts                    # AppType, Variables — tipos globales de Hono
 ```
@@ -120,6 +130,7 @@ src/
 | `recommendations` | recommendations |
 | `dashboard` | — (read-only, queries analíticas sobre sales/items) |
 | `reports` | — (read-only, queries analíticas con date_trunc) |
+| `customer-analytics` | — (read-only + enqueue de jobs async a `ANALYTICS_QUEUE`) |
 | `external-data` | external_data_sources |
 
 ### Scope-by-branch: cómo se indica la sucursal en cada request
@@ -171,11 +182,17 @@ Para los recursos que son scope-by-branch (item-categories, items, sales, stock-
 
 ```typescript
 // shared/env/index.ts
+import type { AnalyticsJobMessage } from '../queue/types'
+
 export type Env = {
   DATABASE_URL: string
   BETTER_AUTH_SECRET: string
   BETTER_AUTH_URL: string
-  // Agregar bindings de Cloudflare aquí (R2, Queue, KV) cuando se necesiten
+
+  // Cloudflare Queue bindings (ver §6.3)
+  ANALYTICS_QUEUE: Queue<AnalyticsJobMessage>
+  ANALYTICS_DLQ: Queue<AnalyticsJobMessage>
+  // Agregar nuevos bindings (R2, KV, etc.) cuando se necesiten
 }
 
 // shared/types/app.ts
@@ -536,6 +553,84 @@ export const externalDataSources = pgTable('external_data_sources', {
   data: jsonb('data'),
 })
 ```
+
+### 6.3 Cloudflare Queues (jobs async, productor + consumer en el mismo Worker)
+
+**Cuándo usar:** cualquier job que NO debe bloquear un request HTTP (jobs largos, side-effects, integraciones externas, notificaciones, scheduled tasks). Patrón sentado en Fase 3.3 con HU-025 (`detect-inactive-customers`).
+
+**Topología:** un solo Worker es producer y consumer a la vez. Confirmado por la doc oficial: *"It is possible for the same Worker to be a producer and consumer, if desired."*
+
+```
+HTTP request  →  enqueue(msg)  →  [ANALYTICS_QUEUE]  →  consumer() handler  →  handler(msg)
+```
+
+**Bindings en `wrangler.jsonc`:**
+```jsonc
+{
+  "queues": {
+    "producers": [
+      { "queue": "tfg-analytics", "binding": "ANALYTICS_QUEUE" }
+    ],
+    "consumers": [
+      {
+        "queue": "tfg-analytics",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30,
+        "max_retries": 5,
+        "dead_letter_queue": "tfg-analytics-dlq",
+        "max_concurrency": 3
+      }
+    ]
+  }
+}
+```
+
+**Deploy de las queues:** todo via `wrangler` CLI. **No hay clicks manuales en el dashboard.**
+- `wrangler deploy` lee `wrangler.jsonc` y crea las queues + bindings automáticamente si no existen.
+- Para crearlas manualmente antes del primer deploy: `wrangler queues create tfg-analytics` y `wrangler queues create tfg-analytics-dlq`.
+- Para inspeccionar la DLQ en producción: `wrangler queues list` y `wrangler queues consumer <queue>`.
+
+**Entry point (dual export):**
+```typescript
+// src/index.ts
+export default {
+  async fetch(request, env, ctx) {
+    return app.fetch(request, env, ctx)
+  },
+  async queue(batch, env, ctx) {
+    return handleQueueBatch(batch, env, ctx)
+  },
+} satisfies ExportedHandler<Env, AnalyticsJobMessage>
+```
+
+**Discriminated union de mensajes (`shared/queue/types.ts`):** extensible. Para agregar un nuevo job type:
+1. Añadir variante al `AnalyticsJobMessage` union.
+2. Crear handler en `shared/queue/handlers/<nuevo>.ts`.
+3. Wirear en `shared/queue/dispatcher.ts` (case del switch).
+4. Documentar aquí.
+
+Tipos actuales: `detect-inactive-customers` (3.3 ✅), `fetch-external-data` (placeholder 3.4), `send-email` (placeholder 3.5 / HU-003).
+
+**Idempotencia:** el patrón asume que un job puede ejecutarse más de una vez (retries, concurrencia). Cada handler debe ser idempotente. `RunDetectInactive` lo logra con un `existingSet` que filtra customers que ya tienen recommendation pending.
+
+**Ack explícito por mensaje** en el dispatcher. Si un mensaje del batch falla, los demás se procesan igual. El que falla no se ackea → Cloudflare reintenta → DLQ tras `max_retries`.
+
+**Pool de Neon en el consumer:** `createConsumerDb` / `closeConsumerDb` (`shared/queue/consumer-db.ts`). El consumer NO tiene request, así que crea su propio pool local y lo cierra al final del handler.
+
+**Local dev con `wrangler dev`:** Miniflare simula queues localmente (persistencia en disco). Los mensajes enviados con `env.ANALYTICS_QUEUE.send(...)` se procesan por el consumer casi inmediatamente (delay 1-2s). Funciona out-of-the-box, sin config extra.
+
+**Cron Triggers** (Fase 3.4) se agregan como un tercer método del default export:
+```typescript
+export default {
+  async fetch(...) {},
+  async queue(...) {},
+  async scheduled(event, env, ctx) {
+    // para 3.4: encolar un job de fetch-external-data
+  },
+}
+```
+
+Configurar en `wrangler.jsonc` con `triggers: { crons: ['0 6 * * *'] }`.
 
 ---
 
@@ -1075,7 +1170,18 @@ registerExternalDataRoutes(app)
 // Health check sin auth
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))
 
-export default app
+/**
+ * Dual export: el mismo Worker maneja HTTP requests y queue messages.
+ * Ver §6.3 para la arquitectura.
+ */
+export default {
+  async fetch(request, env, ctx) {
+    return app.fetch(request, env, ctx)
+  },
+  async queue(batch, env, ctx) {
+    return handleQueueBatch(batch, env, ctx)
+  },
+} satisfies ExportedHandler<Env, AnalyticsJobMessage>
 ```
 
 ---

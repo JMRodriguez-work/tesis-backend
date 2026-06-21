@@ -1,9 +1,9 @@
-import { z } from '@hono/zod-openapi'
+import { z } from "@hono/zod-openapi";
 
 const branchRefSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
-})
+});
 
 export const listCustomersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -11,11 +11,11 @@ export const listCustomersQuerySchema = z.object({
   search: z.string().trim().min(1).max(255).optional(),
   isActive: z.coerce.boolean().optional(),
   branchId: z.string().uuid().optional(),
-})
+});
 
 export const customerIdParamSchema = z.object({
   id: z.string().uuid(),
-})
+});
 
 export const createCustomerSchema = z
   .object({
@@ -25,7 +25,7 @@ export const createCustomerSchema = z
     address: z.string().max(500).optional(),
     branchId: z.string().uuid().optional(),
   })
-  .strict()
+  .strict();
 
 export const updateCustomerSchema = z
   .object({
@@ -36,7 +36,7 @@ export const updateCustomerSchema = z
     isActive: z.boolean().optional(),
     branchId: z.string().uuid().optional(),
   })
-  .strict()
+  .strict();
 
 export const customerSchema = z.object({
   id: z.string().uuid(),
@@ -50,13 +50,13 @@ export const customerSchema = z.object({
   branch: branchRefSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
-})
+});
 
 export const customerResponseSchema = z.object({
   data: customerSchema,
   message: z.string(),
   status: z.number(),
-})
+});
 
 export const customerListResponseSchema = z.object({
   data: z.object({
@@ -70,19 +70,19 @@ export const customerListResponseSchema = z.object({
   }),
   message: z.string(),
   status: z.number(),
-})
+});
 
 export const customerDeleteResponseSchema = z.object({
   data: z.null(),
   message: z.string(),
   status: z.number(),
-})
+});
 
 export const customerSalesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   includeCancelled: z.coerce.boolean().optional().default(true),
-})
+});
 
 const saleListRowSchema = z.object({
   id: z.string().uuid(),
@@ -93,16 +93,16 @@ const saleListRowSchema = z.object({
   total: z.string(),
   discountPercent: z.string(),
   itemCount: z.number(),
-  status: z.enum(['active', 'cancelled']),
+  status: z.enum(["active", "cancelled"]),
   createdAt: z.string(),
-})
+});
 
 const customerPurchaseSummarySchema = z.object({
   totalSpent: z.string(),
   purchaseCount: z.number(),
   lastPurchaseAt: z.string().nullable(),
   averageTicket: z.string(),
-})
+});
 
 export const customerSalesResponseSchema = z.object({
   data: z.object({
@@ -117,4 +117,47 @@ export const customerSalesResponseSchema = z.object({
   }),
   message: z.string(),
   status: z.number(),
-})
+});
+
+export const segmentsQuerySchema = z.object({
+  segment: z
+    .enum(["vip", "frequent", "occasional", "new", "inactive", "dormant"])
+    .optional(),
+  branchId: z.string().uuid().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+const segmentRowSchema = z.object({
+  customerId: z.string().uuid(),
+  customerFullname: z.string(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  branchId: z.string().uuid(),
+  branchName: z.string(),
+  segment: z.enum([
+    "vip",
+    "frequent",
+    "occasional",
+    "new",
+    "inactive",
+    "dormant",
+  ]),
+  totalSpent: z.string(),
+  purchaseCount: z.number(),
+  lastPurchaseAt: z.string().nullable(),
+});
+
+export const segmentsResponseSchema = z.object({
+  data: z.object({
+    data: z.array(segmentRowSchema),
+    meta: z.object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    }),
+  }),
+  message: z.string(),
+  status: z.number(),
+});

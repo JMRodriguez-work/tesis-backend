@@ -17,6 +17,7 @@ import {
   type ResolveSaleBranchInput,
 } from "./resolve-sale-branch";
 import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
+import { onCustomerPurchase } from "../../customer-analytics/triggers/on-customer-purchase";
 
 export type CreateSaleItemInput = {
   itemId: string;
@@ -249,6 +250,13 @@ export class CreateSale {
           itemName: it.itemName,
           newQuantity: decremented.newQuantity,
           minStock: it.minStock,
+        });
+      }
+
+      if (input.customerId) {
+        await onCustomerPurchase(tx as unknown as DB, {
+          organizationId: input.userOrganizationId!,
+          customerId: input.customerId,
         });
       }
 

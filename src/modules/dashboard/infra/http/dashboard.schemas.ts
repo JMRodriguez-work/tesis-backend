@@ -68,3 +68,32 @@ export const productRotationResponseSchema = z.object({
   message: z.string(),
   status: z.number(),
 });
+
+export const inactiveCustomersQuerySchema = z.object({
+  branchId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+const inactiveCustomerRowSchema = z.object({
+  customerId: z.string().uuid(),
+  customerFullname: z.string(),
+  customerEmail: z.string().nullable(),
+  customerPhone: z.string().nullable(),
+  branchId: z.string().uuid(),
+  branchName: z.string(),
+  lastPurchaseAt: z.string().nullable(),
+  daysSinceLastPurchase: z.number().nullable(),
+  totalSpent: z.string(),
+  purchaseCount: z.number(),
+  recommendationId: z.string().uuid(),
+  recommendationGeneratedAt: z.string(),
+});
+
+export const inactiveCustomersResponseSchema = z.object({
+  data: z.object({
+    data: z.array(inactiveCustomerRowSchema),
+    meta: z.object({ total: z.number(), limit: z.number() }),
+  }),
+  message: z.string(),
+  status: z.number(),
+});

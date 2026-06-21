@@ -3,6 +3,7 @@ import { authMiddleware } from "../../../../shared/auth";
 import { roleGuard } from "../../../../shared/auth/role-guard";
 import { ApiError, ApiResponse } from "../../../../shared/http/api-response";
 import type { AppType } from "../../../../shared/types/app";
+import { GetCustomerSegments } from "../../../customer-analytics/use-cases/get-customer-segments.use-case";
 import { GetCustomerPurchaseHistory } from "../../../sales/use-cases/get-customer-purchase-history.use-case";
 import { CreateCustomer } from "../../use-cases/create-customer.use-case";
 import { GetCustomerById } from "../../use-cases/get-customer-by-id.use-case";
@@ -18,6 +19,8 @@ import {
   customerSalesQuerySchema,
   customerSalesResponseSchema,
   listCustomersQuerySchema,
+  segmentsQuerySchema,
+  segmentsResponseSchema,
   updateCustomerSchema,
 } from "./customers.schemas";
 
@@ -308,6 +311,52 @@ export function registerCustomerRoutes(app: AppType) {
         new ApiResponse({
           data: result,
           message: "Historial del cliente",
+          status: 200,
+        }),
+        200,
+      );
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: "get",
+      path: "/api/v1/customers/segments",
+      tags: ["Customers"],
+      summary: "Segmentación de clientes por comportamiento",
+      description:
+        "Clasifica customers según frecuencia, valor y recencia. Filtros: ?segment= ?branchId= ?page= ?limit=",
+      middleware: [authMiddleware] as const,
+      security: [{ cookieAuth: [] }],
+      request: { query: segmentsQuerySchema },
+      responses: {
+        200: {
+          description: "Segmentos",
+          content: {
+            "application/json": { schema: segmentsResponseSchema },
+          },
+        },
+        400: { description: "branchId inválido" },
+        401: { description: "No autenticado" },
+      },
+    }),
+    async (c) => {
+      const user = c.get("user");
+      const db = c.get("db");
+      const query = c.req.valid("query");
+      const result = await new GetCustomerSegments(db).execute({
+        userRoleId: user.roleId,
+        userBranchId: user.branchId,
+        userOrganizationId: user.organizationId,
+        requestedBranchId: query.branchId ?? null,
+        segment: query.segment,
+        page: query.page,
+        limit: query.limit,
+      });
+      return c.json(
+        new ApiResponse({
+          data: result,
+          message: "Segmentos de clientes",
           status: 200,
         }),
         200,
