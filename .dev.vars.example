@@ -1,2 +1,7 @@
-DATABASE_URL=
-BETTER_AUTH_SECRET=
+# Backend dev secrets (wrangler dev). NO commitear el .dev.vars real.
+
+DATABASE_URL=postgresql://USER:PASSWORD@HOST.neon.tech/DBNAME?sslmode=require
+BETTER_AUTH_SECRET=run-openssl-rand-base64-32-and-paste-here
+
+# ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+# FRONTEND_TRUSTED_ORIGINS=http://localhost:5173,http://localhost:3000

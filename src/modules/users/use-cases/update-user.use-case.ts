@@ -8,6 +8,9 @@ import {
   type UserWithRelations,
 } from '../infra/repository/user.repository'
 import { assertBranchRoleConsistency } from './validate-user-branch-role'
+import { assertNotLastAdmin } from './validate-last-admin'
+
+const ADMIN_ROLE_ID = 1
 
 export type UpdateUserInput = {
   id: string
@@ -30,6 +33,14 @@ export class UpdateUser {
 
     if (existing.deletedAt !== null) {
       throw new ApiError('No se puede actualizar un usuario eliminado', 400)
+    }
+
+    if (
+      existing.roleId === ADMIN_ROLE_ID &&
+      existing.isActive &&
+      data.isActive === false
+    ) {
+      await assertNotLastAdmin(this.db, organizationId, id)
     }
 
     const effectiveRoleId = existing.roleId

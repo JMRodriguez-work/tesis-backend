@@ -10,6 +10,9 @@ import {
   assertBranchRoleConsistency,
   assertRoleExists,
 } from './validate-user-branch-role'
+import { assertNotLastAdmin } from './validate-last-admin'
+
+const ADMIN_ROLE_ID = 1
 
 export type ChangeUserRoleInput = {
   id: string
@@ -30,6 +33,10 @@ export class ChangeUserRole {
 
     await assertRoleExists(this.db, roleId)
     assertBranchRoleConsistency({ roleId, branchId: existing.branchId })
+
+    if (existing.roleId === ADMIN_ROLE_ID && roleId !== ADMIN_ROLE_ID) {
+      await assertNotLastAdmin(this.db, organizationId, id)
+    }
 
     const updated = await changeUserRole(this.db, id, roleId)
     if (!updated) return null

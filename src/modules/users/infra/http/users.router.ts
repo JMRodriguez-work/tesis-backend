@@ -293,7 +293,7 @@ export function registerUserRoutes(app: AppType) {
       const db = c.get('db')
       const { id } = c.req.valid('param')
 
-      await new SoftDeleteUser(db).execute(id, user.id)
+      await new SoftDeleteUser(db).execute(id, user.id, user.organizationId ?? '')
 
       return c.json(
         new ApiResponse({ data: null, message: 'Usuario eliminado', status: 200 }),
