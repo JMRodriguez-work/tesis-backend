@@ -28,7 +28,7 @@ export function registerExternalDataRoutes(app: AppType) {
       tags: ["ExternalData"],
       summary: "Listar fuentes de datos externos",
       description:
-        "HU-030/HU-031. Devuelve las fuentes externas configuradas. Soporta filtros ?isActive=true|false (default: solo activas) y ?type=wholesale_prices|search_trends|seasonality. Restringido a Admin/Manager: el response sanitiza `authConfig` (muestra solo que existe, no sus valores).",
+        "HU-030/HU-031. Devuelve las fuentes externas configuradas. Paginada con ?page (default 1) y ?limit (default 20, max 100). Soporta filtros ?isActive=true|false (default: solo activas) y ?type=wholesale_prices|search_trends|seasonality. Restringido a Admin/Manager: el response sanitiza `authConfig` (muestra solo que existe, no sus valores).",
       middleware: [authMiddleware, roleGuard(["Admin", "Manager"])] as const,
       security: [{ cookieAuth: [] }],
       request: { query: listSourcesQuerySchema },
@@ -51,6 +51,8 @@ export function registerExternalDataRoutes(app: AppType) {
       const data = await new ListExternalDataSources(db).execute({
         isActive,
         type: query.type,
+        page: query.page,
+        limit: query.limit,
       });
       return c.json(
         new ApiResponse({ data, message: "Fuentes obtenidas", status: 200 }),

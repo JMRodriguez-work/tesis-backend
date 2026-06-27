@@ -10,6 +10,7 @@ import type {
   AuthConfig,
   FetchExternalDataResult,
 } from "../domain/external-data.entity";
+import { enforceIndecDateParams } from "../domain/enforce-indec-date-params";
 import { sanitizeUrl } from "../domain/sanitize-url";
 
 const FETCH_TIMEOUT_MS = 8000;
@@ -100,12 +101,12 @@ export class RunFetchExternalData {
     const headers: Record<string, string> = {
       Accept: "application/json",
     };
-    let finalUrl = url;
+    let finalUrl = enforceIndecDateParams(url);
     if (authConfig?.headers) {
       Object.assign(headers, authConfig.headers);
     }
     if (authConfig?.queryParams) {
-      const u = new URL(url);
+      const u = new URL(finalUrl);
       for (const [k, v] of Object.entries(authConfig.queryParams)) {
         u.searchParams.set(k, v);
       }

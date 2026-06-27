@@ -288,13 +288,16 @@ export class CreateSale {
         payload?: {
           source?: string;
           latest?: { period: string; value: number };
+          latestChange?: number | null;
         };
       };
       const latest = data.payload?.latest;
+      const change = data.payload?.latestChange;
       if (!latest || typeof latest.value !== "number") return null;
       const sourceName = data.payload?.source ?? source.name;
       return {
         latest: { period: latest.period, value: latest.value },
+        latestChange: typeof change === "number" ? change : null,
         source: sourceName,
       };
     } catch (err) {

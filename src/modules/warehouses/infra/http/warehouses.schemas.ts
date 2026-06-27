@@ -117,6 +117,7 @@ export const stockRowSchema = z.object({
   itemId: z.string().uuid(),
   itemName: z.string(),
   itemCode: z.string().nullable(),
+  unitType: z.enum(['count', 'weight', 'volume']).nullable(),
   quantity: z.string(),
   minStock: z.string(),
   status: z.enum(['low', 'ok', 'out']),

@@ -27,22 +27,23 @@ export function computeRestockPriority(
 
 /**
  * Variant of `computeRestockPriority` that bumps the priority to `high`
- * when the latest IPC value exceeds the inflation threshold. The threshold
- * is a percentage expressed as a number (e.g. 5 means 5% MoM).
+ * when the latest month-over-month IPC variation exceeds the inflation
+ * threshold. The threshold is a percentage expressed as a number
+ * (e.g. 5 means 5% MoM).
  *
- * If `ipcValue` is null, falls back to the base ratio-based priority.
+ * If `ipcChangeMoM` is null, falls back to the base ratio-based priority.
  */
 export const IPC_HIGH_PRIORITY_THRESHOLD = 5
 
 export function computeRestockPriorityWithIpc(
   quantity: string,
   minStock: string,
-  ipcValue: number | null,
+  ipcChangeMoM: number | null,
 ): RecommendationPriority {
   const base = computeRestockPriority(quantity, minStock)
   if (
-    ipcValue !== null &&
-    ipcValue > IPC_HIGH_PRIORITY_THRESHOLD &&
+    ipcChangeMoM !== null &&
+    ipcChangeMoM > IPC_HIGH_PRIORITY_THRESHOLD &&
     base !== 'high'
   ) {
     return 'high'
@@ -52,6 +53,8 @@ export function computeRestockPriorityWithIpc(
 
 export type IpcContext = {
   latest: { period: string; value: number }
+  /** Variación porcentual mensual del IPC (último vs anterior). Null si no hay datos. */
+  latestChange: number | null
   source: string
 }
 
@@ -65,5 +68,9 @@ export function buildRestockDescription(
   if (!ipcContext) {
     return `${base} Reponer.`
   }
-  return `${base} IPC último mes: +${ipcContext.latest.value}% (${ipcContext.latest.period}, fuente: ${ipcContext.source}). Reponer y considerar ajuste de precio.`
+  if (ipcContext.latestChange !== null) {
+    const sign = ipcContext.latestChange >= 0 ? '+' : '';
+    return `${base} IPC último mes: ${sign}${ipcContext.latestChange.toFixed(1)}% (${ipcContext.latest.period}, fuente: ${ipcContext.source}). Reponer y considerar ajuste de precio.`
+  }
+  return `${base} IPC (${ipcContext.latest.period}, fuente: ${ipcContext.source}) sin variación calculable. Reponer.`
 }

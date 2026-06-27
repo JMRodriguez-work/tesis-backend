@@ -1,4 +1,4 @@
-import { and, count, eq, ilike, isNull, ne, or, sum, type SQL } from 'drizzle-orm'
+import { and, count, eq, ilike, inArray, isNull, ne, or, sql, sum, type SQL } from 'drizzle-orm'
 import type { DB } from '../../../../shared/db'
 import * as schema from '../../../../shared/db/schema'
 
@@ -448,4 +448,218 @@ export async function softDeleteItem(db: DB, id: string) {
     .where(and(eq(schema.items.id, id), isNull(schema.items.deletedAt)))
     .returning({ id: schema.items.id })
   return result[0] ?? null
+}
+
+export type ItemsWithStockFilters = {
+  branchId: string;
+  page: number;
+  limit: number;
+  search?: string;
+  status?: 'out' | 'low' | 'ok';
+  showInactive: boolean;
+};
+
+export type ItemStockRow = {
+  id: string;
+  name: string;
+  code: string | null;
+  isActive: boolean;
+  category: { id: string; name: string } | null;
+  totalQuantity: string;
+  totalMinStock: string;
+  status: 'out' | 'low' | 'ok';
+  warehouses: Array<{
+    warehouseId: string;
+    warehouseName: string;
+    quantity: string;
+    minStock: string;
+    status: 'out' | 'low' | 'ok';
+  }>;
+};
+
+/**
+ * List items in a branch with their aggregated stock across all warehouses
+ * assigned to that branch, plus per-warehouse breakdown.
+ *
+ * Pagination, search and status filter are applied SQL-side. The status
+ * filter is computed by deriving a `stock_status` from the aggregate
+ * (out = no stock at all; low = below min_stock total; ok = at/above).
+ */
+export async function findItemsWithStockByBranch(
+  db: DB,
+  filters: ItemsWithStockFilters,
+): Promise<{ data: ItemStockRow[]; total: number }> {
+  const conditions: SQL[] = [
+    eq(schema.items.branchId, filters.branchId),
+    isNull(schema.items.deletedAt),
+  ];
+  if (!filters.showInactive) {
+    conditions.push(eq(schema.items.isActive, true));
+  }
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    const searchCondition = or(
+      ilike(schema.items.name, term),
+      ilike(schema.items.code, term),
+      ilike(schema.items.barcode, term),
+    );
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
+  }
+
+  // Subquery: per-item aggregated stock (sum of quantity and minStock
+  // across all warehouses). The CASE expression computes a status code
+  // we can use for SQL-side filtering: 0 = out, 1 = low, 2 = ok.
+  const stockAggSubquery = db
+    .select({
+      itemId: schema.warehouseItemStocks.itemId,
+      totalQuantity: sql<string>`COALESCE(SUM(${schema.warehouseItemStocks.quantity}::numeric), 0)::text`.as(
+        'total_quantity',
+      ),
+      totalMinStock: sql<string>`COALESCE(SUM(${schema.warehouseItemStocks.minStock}::numeric), 0)::text`.as(
+        'total_min_stock',
+      ),
+      statusCode: sql<number>`CASE
+        WHEN COALESCE(SUM(${schema.warehouseItemStocks.quantity}::numeric), 0) = 0 THEN 0
+        WHEN COALESCE(SUM(${schema.warehouseItemStocks.minStock}::numeric), 0) > 0
+          AND COALESCE(SUM(${schema.warehouseItemStocks.quantity}::numeric), 0)
+            < COALESCE(SUM(${schema.warehouseItemStocks.minStock}::numeric), 0) THEN 1
+        ELSE 2
+      END`.as('status_code'),
+    })
+    .from(schema.warehouseItemStocks)
+    .groupBy(schema.warehouseItemStocks.itemId)
+    .as('stock_agg');
+
+  const statusToCode: Record<'out' | 'low' | 'ok', number> = {
+    out: 0,
+    low: 1,
+    ok: 2,
+  };
+
+  const totalResult = await db
+    .select({
+      value: count(),
+    })
+    .from(schema.items)
+    .leftJoin(stockAggSubquery, eq(stockAggSubquery.itemId, schema.items.id))
+    .where(
+      filters.status
+        ? and(
+            ...conditions,
+            eq(stockAggSubquery.statusCode, statusToCode[filters.status]),
+          )
+        : and(...conditions),
+    );
+  const total = Number(totalResult[0]?.value ?? 0);
+
+  const offset = (filters.page - 1) * filters.limit;
+  const rows = await db
+    .select({
+      id: schema.items.id,
+      name: schema.items.name,
+      code: schema.items.code,
+      isActive: schema.items.isActive,
+      unitType: schema.units.unitType,
+      categoryId: schema.items.categoryId,
+      categoryName: schema.itemCategories.name,
+      totalQuantity: stockAggSubquery.totalQuantity,
+      totalMinStock: stockAggSubquery.totalMinStock,
+      statusCode: stockAggSubquery.statusCode,
+    })
+    .from(schema.items)
+    .leftJoin(stockAggSubquery, eq(stockAggSubquery.itemId, schema.items.id))
+    .leftJoin(
+      schema.itemCategories,
+      eq(schema.itemCategories.id, schema.items.categoryId),
+    )
+    .leftJoin(schema.units, eq(schema.units.id, schema.items.baseUnitId))
+    .where(
+      filters.status
+        ? and(
+            ...conditions,
+            eq(stockAggSubquery.statusCode, statusToCode[filters.status]),
+          )
+        : and(...conditions),
+    )
+    .orderBy(schema.items.name)
+    .limit(filters.limit)
+    .offset(offset);
+
+  if (rows.length === 0) {
+    return { data: [], total };
+  }
+
+  const itemIds = rows.map((r) => r.id);
+  const stockRows = await db
+    .select({
+      itemId: schema.warehouseItemStocks.itemId,
+      warehouseId: schema.warehouses.id,
+      warehouseName: schema.warehouses.name,
+      quantity: schema.warehouseItemStocks.quantity,
+      minStock: schema.warehouseItemStocks.minStock,
+    })
+    .from(schema.warehouseItemStocks)
+    .innerJoin(
+      schema.warehouses,
+      eq(schema.warehouses.id, schema.warehouseItemStocks.warehouseId),
+    )
+    .where(
+      and(
+        inArray(schema.warehouseItemStocks.itemId, itemIds),
+        isNull(schema.warehouses.deletedAt),
+      ),
+    )
+    .orderBy(schema.warehouses.name);
+
+  const stockByItem = new Map<
+    string,
+    Array<{
+      warehouseId: string;
+      warehouseName: string;
+      quantity: string;
+      minStock: string;
+      status: 'out' | 'low' | 'ok';
+    }>
+  >();
+  for (const s of stockRows) {
+    const q = Number(s.quantity);
+    const m = Number(s.minStock);
+    const status: 'out' | 'low' | 'ok' =
+      q === 0 ? 'out' : m > 0 && q < m ? 'low' : 'ok';
+    const list = stockByItem.get(s.itemId) ?? [];
+    list.push({
+      warehouseId: s.warehouseId,
+      warehouseName: s.warehouseName,
+      quantity: s.quantity,
+      minStock: s.minStock,
+      status,
+    });
+    stockByItem.set(s.itemId, list);
+  }
+
+  const codeToStatus: Record<number, 'out' | 'low' | 'ok'> = {
+    0: 'out',
+    1: 'low',
+    2: 'ok',
+  };
+
+  const data: ItemStockRow[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    code: r.code,
+    isActive: r.isActive,
+    unitType: r.unitType ?? null,
+    category:
+      r.categoryId && r.categoryName
+        ? { id: r.categoryId, name: r.categoryName }
+        : null,
+    totalQuantity: r.totalQuantity ?? '0',
+    totalMinStock: r.totalMinStock ?? '0',
+    status: codeToStatus[r.statusCode ?? 2] ?? 'ok',
+    warehouses: stockByItem.get(r.id) ?? [],
+  }));
+
+  return { data, total };
 }

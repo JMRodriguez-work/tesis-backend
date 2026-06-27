@@ -397,11 +397,13 @@ export async function findItemWarehouseStocksByWarehouse(
       itemId: schema.items.id,
       itemName: schema.items.name,
       itemCode: schema.items.code,
+      unitType: schema.units.unitType,
       quantity: schema.warehouseItemStocks.quantity,
       minStock: schema.warehouseItemStocks.minStock,
     })
     .from(schema.warehouseItemStocks)
     .innerJoin(schema.items, eq(schema.items.id, schema.warehouseItemStocks.itemId))
+    .leftJoin(schema.units, eq(schema.units.id, schema.items.baseUnitId))
     .where(and(...conditions))
     .orderBy(schema.items.name)
     .limit(limit)
@@ -457,11 +459,14 @@ export async function findItemWarehouseStocksByItem(db: DB, itemId: string) {
       id: schema.warehouseItemStocks.id,
       warehouseId: schema.warehouses.id,
       warehouseName: schema.warehouses.name,
+      unitType: schema.units.unitType,
       quantity: schema.warehouseItemStocks.quantity,
       minStock: schema.warehouseItemStocks.minStock,
     })
     .from(schema.warehouseItemStocks)
     .innerJoin(schema.warehouses, eq(schema.warehouses.id, schema.warehouseItemStocks.warehouseId))
+    .leftJoin(schema.items, eq(schema.items.id, schema.warehouseItemStocks.itemId))
+    .leftJoin(schema.units, eq(schema.units.id, schema.items.baseUnitId))
     .where(
       and(
         eq(schema.warehouseItemStocks.itemId, itemId),

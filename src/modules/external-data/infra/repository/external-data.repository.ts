@@ -18,9 +18,15 @@ type ListFilters = {
   type?: ExternalDataSourceType;
 };
 
+type ListOptions = {
+  limit?: number;
+  offset?: number;
+};
+
 export async function findAllSources(
   db: DB,
   filters: ListFilters = {},
+  options: ListOptions = {},
 ): Promise<ExternalDataSourceRow[]> {
   const conditions: SQL[] = [];
   if (filters.isActive !== undefined) {
@@ -32,7 +38,7 @@ export async function findAllSources(
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const rows = await db
+  const query = db
     .select({
       id: schema.externalDataSources.id,
       name: schema.externalDataSources.name,
@@ -48,6 +54,15 @@ export async function findAllSources(
     .from(schema.externalDataSources)
     .where(where)
     .orderBy(schema.externalDataSources.name);
+
+  if (options.limit !== undefined) {
+    query.limit(options.limit);
+  }
+  if (options.offset !== undefined) {
+    query.offset(options.offset);
+  }
+
+  const rows = await query;
 
   return rows.map((r) => ({
     id: r.id,

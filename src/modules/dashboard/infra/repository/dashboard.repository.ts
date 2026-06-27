@@ -83,7 +83,7 @@ export async function getProductRotation(
       totalQuantity: sql<string>`COALESCE(SUM(${schema.saleItems.quantity}::numeric), 0)::text`,
       totalRevenue: sql<string>`COALESCE(SUM(${schema.saleItems.price}::numeric * ${schema.saleItems.quantity}::numeric), 0)::text`,
       transactionCount: sql<number>`COUNT(DISTINCT ${schema.sales.id})::int`,
-      lastSoldAt: sql<Date | null>`MAX(${schema.sales.createdAt})`,
+      lastSoldAt: sql<string | null>`MAX(${schema.sales.createdAt})`,
     })
     .from(schema.saleItems)
     .innerJoin(schema.sales, eq(schema.sales.id, schema.saleItems.saleId))
@@ -114,7 +114,7 @@ export async function getProductRotation(
     totalQuantitySold: r.totalQuantity,
     totalRevenue: r.totalRevenue,
     transactionCount: Number(r.transactionCount),
-    lastSoldAt: r.lastSoldAt ? r.lastSoldAt.toISOString() : null,
+    lastSoldAt: r.lastSoldAt ? new Date(r.lastSoldAt).toISOString() : null,
   }));
 }
 

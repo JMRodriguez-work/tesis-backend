@@ -122,3 +122,48 @@ export const itemDeleteResponseSchema = z.object({
   message: z.string(),
   status: z.number(),
 })
+
+export const itemStockWarehouseSchema = z.object({
+  warehouseId: z.string().uuid(),
+  warehouseName: z.string(),
+  unitType: z.enum(['count', 'weight', 'volume']).nullable(),
+  quantity: z.string(),
+  minStock: z.string(),
+  status: z.enum(['out', 'low', 'ok']),
+})
+
+export const itemStockRowSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  code: z.string().nullable(),
+  isActive: z.boolean(),
+  unitType: z.enum(['count', 'weight', 'volume']).nullable(),
+  category: categoryRelationSchema.nullable(),
+  totalQuantity: z.string(),
+  totalMinStock: z.string(),
+  status: z.enum(['out', 'low', 'ok']),
+  warehouses: z.array(itemStockWarehouseSchema),
+})
+
+export const listItemsWithStockQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().min(1).max(255).optional(),
+  status: z.enum(['out', 'low', 'ok']).optional(),
+  showInactive: z.coerce.boolean().optional().default(false),
+  branchId: z.string().uuid().optional(),
+})
+
+export const itemsWithStockListResponseSchema = z.object({
+  data: z.object({
+    data: z.array(itemStockRowSchema),
+    meta: z.object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    }),
+  }),
+  message: z.string(),
+  status: z.number(),
+})

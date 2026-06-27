@@ -45,6 +45,8 @@ export const updateSourceSchema = z
   .strict();
 
 export const listSourcesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   isActive: z
     .union([z.literal("true"), z.literal("false")])
     .optional()
@@ -70,7 +72,12 @@ export const externalDataSourceSchema = z.object({
 export const externalDataSourcesListResponseSchema = z.object({
   data: z.object({
     data: z.array(externalDataSourceSchema),
-    meta: z.object({ total: z.number() }),
+    meta: z.object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    }),
   }),
   message: z.string(),
   status: z.number(),

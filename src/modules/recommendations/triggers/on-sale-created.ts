@@ -32,11 +32,11 @@ export async function onSaleCreated(tx: DB, input: OnSaleCreatedInput) {
     return null;
   }
 
-  const ipcValue = input.ipcContext?.latest.value ?? null;
+  const ipcChange = input.ipcContext?.latestChange ?? null;
   const priority = computeRestockPriorityWithIpc(
     input.newQuantity,
     input.minStock,
-    ipcValue,
+    ipcChange,
   );
   const description = buildRestockDescription(
     input.itemName,

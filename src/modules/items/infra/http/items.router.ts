@@ -6,6 +6,7 @@ import type { AppType } from '../../../../shared/types/app'
 import { CreateItem } from '../../use-cases/create-item.use-case'
 import { GetItemById } from '../../use-cases/get-item-by-id.use-case'
 import { GetItemsPaginated } from '../../use-cases/get-items-paginated.use-case'
+import { ListItemsWithStock } from '../../use-cases/list-items-with-stock.use-case'
 import { LookupItemByBarcode } from '../../use-cases/lookup-item-by-barcode.use-case'
 import { SoftDeleteItem } from '../../use-cases/soft-delete-item.use-case'
 import { UpdateItem } from '../../use-cases/update-item.use-case'
@@ -16,7 +17,9 @@ import {
   itemIdParamSchema,
   itemListResponseSchema,
   itemResponseSchema,
+  itemsWithStockListResponseSchema,
   listItemsQuerySchema,
+  listItemsWithStockQuerySchema,
   updateItemSchema,
 } from './items.schemas'
 
@@ -63,6 +66,56 @@ export function registerItemRoutes(app: AppType) {
 
       return c.json(
         new ApiResponse({ data: result, message: 'Items obtenidos', status: 200 }),
+        200,
+      )
+    },
+  )
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/api/v1/items/stock',
+      tags: ['Items'],
+      summary: 'Listar items con su stock agregado y desglosado por depósito',
+      description:
+        'Admin/Manager/Employee. Admin: debe indicar ?branchId=. Manager/Employee: filtrado por su branch. Filtra isNull(deletedAt). Por defecto solo items activos (?showInactive=true los incluye). Filtros: search (name, code, barcode), status (out|low|ok). Paginación server-side. Stock calculado como suma de quantity/minStock en todos los depósitos asignados a la branch; el status global deriva de esa suma.',
+      middleware: [authMiddleware] as const,
+      security: [{ cookieAuth: [] }],
+      request: { query: listItemsWithStockQuerySchema },
+      responses: {
+        200: {
+          description: 'Items con stock',
+          content: {
+            'application/json': { schema: itemsWithStockListResponseSchema },
+          },
+        },
+        400: { description: 'Falta branchId (Admin) o branchId inválido' },
+        401: { description: 'No autenticado' },
+      },
+    }),
+    async (c) => {
+      const user = c.get('user')
+      const db = c.get('db')
+      const query = c.req.valid('query')
+
+      const result = await new ListItemsWithStock(db).execute({
+        requestedBranchId: query.branchId ?? null,
+        userRoleId: user.roleId,
+        userBranchId: user.branchId,
+        userOrganizationId: user.organizationId,
+        page: query.page,
+        limit: query.limit,
+        search: query.search,
+        status: query.status,
+        showInactive: query.showInactive,
+      })
+
+      return c.json(
+        new ApiResponse({
+          data: result,
+          message: 'Items con stock obtenidos',
+          status: 200,
+        }),
         200,
       )
     },

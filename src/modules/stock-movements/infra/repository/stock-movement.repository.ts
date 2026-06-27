@@ -372,6 +372,7 @@ export async function findLowStockItems(
       itemId: schema.warehouseItemStocks.itemId,
       itemName: schema.items.name,
       itemCode: schema.items.code,
+      unitType: schema.units.unitType,
       warehouseId: schema.warehouses.id,
       warehouseName: schema.warehouses.name,
       branchId: schema.branches.id,
@@ -390,6 +391,7 @@ export async function findLowStockItems(
       eq(schema.warehouseBranches.warehouseId, schema.warehouses.id),
     )
     .innerJoin(schema.branches, eq(schema.branches.id, schema.warehouseBranches.branchId))
+    .leftJoin(schema.units, eq(schema.units.id, schema.items.baseUnitId))
     .where(and(...conditions))
 
   return rows

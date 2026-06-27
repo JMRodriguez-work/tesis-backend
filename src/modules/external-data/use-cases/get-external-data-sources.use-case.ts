@@ -12,6 +12,8 @@ import {
 export type ListExternalDataSourcesInput = {
   isActive?: boolean;
   type?: ExternalDataSourceType;
+  page?: number;
+  limit?: number;
 };
 
 export type SanitizedExternalDataSourceRow = {
@@ -29,7 +31,7 @@ export type SanitizedExternalDataSourceRow = {
 
 export type ListExternalDataSourcesResult = {
   data: SanitizedExternalDataSourceRow[];
-  meta: { total: number };
+  meta: { page: number; limit: number; total: number; totalPages: number };
 };
 
 export class ListExternalDataSources {
@@ -38,18 +40,33 @@ export class ListExternalDataSources {
   async execute(
     input: ListExternalDataSourcesInput = {},
   ): Promise<ListExternalDataSourcesResult> {
+    const page = input.page ?? 1;
+    const limit = Math.min(input.limit ?? 20, 100);
+    const offset = (page - 1) * limit;
+
     const filters = {
       isActive: input.isActive,
       type: input.type,
     };
+
     const [rows, total] = await Promise.all([
-      findAllSources(this.db, filters),
+      findAllSources(this.db, filters, { limit, offset }),
       countSources(this.db, filters),
     ]);
+
     const data = rows.map((row) => ({
       ...row,
       authConfig: sanitizeAuthConfig(row.authConfig),
     }));
-    return { data, meta: { total } };
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+      },
+    };
   }
 }
