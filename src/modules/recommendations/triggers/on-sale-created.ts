@@ -1,4 +1,5 @@
 import type { DB } from "../../../shared/db";
+import type { UnitType } from "../../../shared/format";
 import {
   createRestockRecommendation,
   findActiveRestockByItemBranch,
@@ -15,6 +16,9 @@ export type OnSaleCreatedInput = {
   itemName: string;
   newQuantity: string;
   minStock: string;
+  unitType: UnitType | null;
+  unitName: string | null;
+  unitAbbreviation: string | null;
   ipcContext?: IpcContext | null;
 };
 
@@ -42,7 +46,12 @@ export async function onSaleCreated(tx: DB, input: OnSaleCreatedInput) {
     input.itemName,
     input.newQuantity,
     input.minStock,
-    input.ipcContext ?? null,
+    {
+      unitType: input.unitType,
+      unitName: input.unitName,
+      unitAbbreviation: input.unitAbbreviation,
+      ipcContext: input.ipcContext ?? null,
+    },
   );
 
   return createRestockRecommendation(tx, {

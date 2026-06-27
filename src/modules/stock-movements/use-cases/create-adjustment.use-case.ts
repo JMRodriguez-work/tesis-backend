@@ -15,6 +15,7 @@ import {
 } from "../infra/repository/stock-movement.repository";
 import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
 import { onStockIncreased } from "../../recommendations/triggers/on-stock-increased";
+import { findItemBaseUnit } from "../../items/infra/repository/item.repository";
 
 export type CreateAdjustmentInput = {
   branchId: string;
@@ -70,6 +71,21 @@ export class CreateAdjustment {
     if (item.branchId !== input.branchId) {
       throw new ApiError("El item no pertenece a la sucursal", 400);
     }
+
+    const unitInfo = item.baseUnitId
+      ? await findItemBaseUnit(this.db, input.itemId)
+      : null;
+    const validUnitType: "count" | "weight" | "volume" | null =
+      unitInfo?.unitType === "count" ||
+      unitInfo?.unitType === "weight" ||
+      unitInfo?.unitType === "volume"
+        ? unitInfo.unitType
+        : null;
+    const unitPayload = {
+      unitType: validUnitType,
+      unitName: unitInfo?.unitName ?? null,
+      unitAbbreviation: unitInfo?.unitAbbreviation ?? null,
+    };
 
     const movement = await this.db.transaction(async (tx) => {
       let resultingQuantity = "0";
@@ -141,6 +157,7 @@ export class CreateAdjustment {
           itemName: item.name,
           newQuantity: resultingQuantity,
           minStock,
+          ...unitPayload,
         });
       } else {
         await onStockIncreased(tx as unknown as DB, {

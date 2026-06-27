@@ -56,7 +56,6 @@ export async function getCustomersWithLastPurchase(
     );
 
   return rows
-    .filter((r) => r.lastPurchaseAt !== null)
     .map((r) => ({
       customerId: r.customerId,
       fullname: r.fullname,
@@ -64,10 +63,11 @@ export async function getCustomersWithLastPurchase(
       phone: r.phone,
       branchId: r.branchId,
       branchName: r.branchName ?? "",
-      lastPurchaseAt: r.lastPurchaseAt,
+      lastPurchaseAt: toDate(r.lastPurchaseAt),
       totalSpent: r.totalSpent,
       purchaseCount: Number(r.purchaseCount),
-    }));
+    }))
+    .filter((r) => r.lastPurchaseAt !== null);
 }
 
 export async function getActiveRetentionCustomers(
@@ -201,8 +201,8 @@ export async function getInactiveCustomersWithRecommendations(
     customerPhone: r.customerPhone,
     branchId: r.branchId,
     branchName: r.branchName ?? "",
-    lastPurchaseAt: r.lastPurchaseAt,
-    daysSinceLastPurchase: null, // computed in use case
+    lastPurchaseAt: toDate(r.lastPurchaseAt),
+    daysSinceLastPurchase: null,
     totalSpent: r.totalSpent,
     purchaseCount: Number(r.purchaseCount),
     recommendationId: r.recommendationId,
@@ -317,7 +317,7 @@ export async function getCustomersWithStats(
     branchName: r.branchName ?? "",
     purchaseCount: Number(r.purchaseCount),
     totalSpent: r.totalSpent,
-    lastPurchaseAt: r.lastPurchaseAt,
+    lastPurchaseAt: toDate(r.lastPurchaseAt),
   }));
 }
 
@@ -342,4 +342,12 @@ export async function countCustomersWithStats(
     )
     .where(and(...conditions));
   return Number(rows[0]?.value ?? 0);
+}
+
+
+export function toDate(value: Date | string | null | undefined): Date | null {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

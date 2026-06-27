@@ -1,4 +1,5 @@
 import type { RecommendationPriority } from '../domain/recommendation.entity'
+import { formatQuantityWithUnit, type UnitType } from '../../../shared/format'
 
 /**
  * Decide the priority of a `restock` recommendation based on how far below
@@ -62,9 +63,17 @@ export function buildRestockDescription(
   itemName: string,
   quantity: string,
   minStock: string,
-  ipcContext: IpcContext | null = null,
+  options: {
+    unitType: UnitType | null;
+    unitName: string | null;
+    unitAbbreviation: string | null;
+    ipcContext?: IpcContext | null;
+  },
 ): string {
-  const base = `Stock bajo nivel crítico: quedan ${quantity} unidades de "${itemName}" (mínimo: ${minStock}).`
+  const ipcContext = options.ipcContext ?? null;
+  const qty = formatQuantityWithUnit(quantity, options.unitType, options.unitName, options.unitAbbreviation);
+  const min = formatQuantityWithUnit(minStock, options.unitType, options.unitName, options.unitAbbreviation);
+  const base = `Stock bajo nivel crítico: quedan ${qty} de "${itemName}" (mínimo: ${min}).`
   if (!ipcContext) {
     return `${base} Reponer.`
   }

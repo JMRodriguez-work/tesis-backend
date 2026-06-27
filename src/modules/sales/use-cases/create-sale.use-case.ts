@@ -12,6 +12,7 @@ import {
   findWarehouseByIdRaw,
   type WarehouseStockRow,
 } from "../infra/repository/sale.repository";
+import { findItemBaseUnit } from "../../items/infra/repository/item.repository";
 import {
   resolveSaleBranchForWrite,
   type ResolveSaleBranchInput,
@@ -43,6 +44,9 @@ type ResolvedItem = {
   price: number;
   lineTotal: number;
   unitId: number | null;
+  unitType: "count" | "weight" | "volume" | null;
+  unitName: string | null;
+  unitAbbreviation: string | null;
   warehouseId: string;
   stockId: string;
   minStock: string;
@@ -161,6 +165,16 @@ export class CreateSale {
         );
       }
 
+      const unitInfo = item.baseUnitId
+        ? await findItemBaseUnit(this.db, item.id)
+        : null;
+      const validUnitType: "count" | "weight" | "volume" | null =
+        unitInfo?.unitType === "count" ||
+        unitInfo?.unitType === "weight" ||
+        unitInfo?.unitType === "volume"
+          ? unitInfo.unitType
+          : null;
+
       resolvedItems.push({
         itemId: item.id,
         itemName: item.name,
@@ -168,6 +182,9 @@ export class CreateSale {
         price: Number(raw.price),
         lineTotal: requested * Number(raw.price),
         unitId: raw.unitId ?? null,
+        unitType: validUnitType,
+        unitName: unitInfo?.unitName ?? null,
+        unitAbbreviation: unitInfo?.unitAbbreviation ?? null,
         warehouseId: stock.warehouseId,
         stockId: stock.stockId,
         minStock: stock.minStock,
@@ -254,6 +271,9 @@ export class CreateSale {
           itemName: it.itemName,
           newQuantity: decremented.newQuantity,
           minStock: it.minStock,
+          unitType: it.unitType,
+          unitName: it.unitName,
+          unitAbbreviation: it.unitAbbreviation,
           ipcContext,
         });
       }

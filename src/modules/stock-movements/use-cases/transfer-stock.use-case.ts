@@ -14,6 +14,7 @@ import {
   findWarehouseByIdRaw,
 } from "../infra/repository/stock-movement.repository";
 import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
+import { findItemBaseUnit } from "../../items/infra/repository/item.repository";
 
 export type TransferStockInput = {
   branchId: string;
@@ -103,6 +104,21 @@ export class TransferStock {
       throw new ApiError("El item no pertenece a la sucursal", 400);
     }
 
+    const unitInfo = item.baseUnitId
+      ? await findItemBaseUnit(this.db, input.itemId)
+      : null;
+    const validUnitType: "count" | "weight" | "volume" | null =
+      unitInfo?.unitType === "count" ||
+      unitInfo?.unitType === "weight" ||
+      unitInfo?.unitType === "volume"
+        ? unitInfo.unitType
+        : null;
+    const unitPayload = {
+      unitType: validUnitType,
+      unitName: unitInfo?.unitName ?? null,
+      unitAbbreviation: unitInfo?.unitAbbreviation ?? null,
+    };
+
     const movement = await this.db.transaction(async (tx) => {
       const fromStockRow = await tx
         .select({
@@ -161,6 +177,7 @@ export class TransferStock {
         itemName: item.name,
         newQuantity: decremented.newQuantity,
         minStock: fromStockRow[0].minStock,
+        ...unitPayload,
       });
 
       // Destination warehouse: we intentionally do NOT call

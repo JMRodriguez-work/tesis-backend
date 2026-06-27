@@ -13,6 +13,35 @@ export async function findItemByIdRaw(db: DB, id: string) {
   return result[0] ?? null
 }
 
+export type ItemBaseUnitInfo = {
+  unitType: string;
+  unitName: string;
+  unitAbbreviation: string;
+};
+
+export async function findItemBaseUnit(
+  db: DB,
+  itemId: string,
+): Promise<ItemBaseUnitInfo | null> {
+  const result = await db
+    .select({
+      unitType: schema.units.unitType,
+      unitName: schema.units.name,
+      unitAbbreviation: schema.units.abbreviation,
+    })
+    .from(schema.items)
+    .innerJoin(schema.units, eq(schema.units.id, schema.items.baseUnitId))
+    .where(eq(schema.items.id, itemId))
+    .limit(1)
+  const row = result[0]
+  if (!row) return null
+  return {
+    unitType: row.unitType,
+    unitName: row.unitName,
+    unitAbbreviation: row.unitAbbreviation,
+  }
+}
+
 export type ItemWithRelations = {
   id: string
   name: string

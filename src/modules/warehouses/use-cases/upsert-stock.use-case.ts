@@ -7,6 +7,7 @@ import { ADMIN_ROLE_ID, type ScopeInput } from './resolve-warehouse-access'
 import { createStockMovement } from '../../stock-movements/infra/repository/stock-movement.repository'
 import { onSaleCreated } from '../../recommendations/triggers/on-sale-created'
 import { onStockIncreased } from '../../recommendations/triggers/on-stock-increased'
+import { findItemBaseUnit } from '../../items/infra/repository/item.repository'
 
 export type UpsertStockInput = ScopeInput & {
   warehouseId: string
@@ -30,6 +31,21 @@ export class UpsertStock {
 
     if (!item || item.deletedAt !== null) {
       throw new ApiError('Item no encontrado', 400)
+    }
+
+    const unitInfo = item.baseUnitId
+      ? await findItemBaseUnit(this.db, input.itemId)
+      : null
+    const validUnitType: 'count' | 'weight' | 'volume' | null =
+      unitInfo?.unitType === 'count' ||
+      unitInfo?.unitType === 'weight' ||
+      unitInfo?.unitType === 'volume'
+        ? unitInfo.unitType
+        : null
+    const unitPayload = {
+      unitType: validUnitType,
+      unitName: unitInfo?.unitName ?? null,
+      unitAbbreviation: unitInfo?.unitAbbreviation ?? null,
     }
 
     const wh = await this.db
@@ -132,6 +148,7 @@ export class UpsertStock {
             itemName: item.name,
             newQuantity: input.quantity,
             minStock: effectiveMinStock,
+            ...unitPayload,
           })
         }
       }
