@@ -168,9 +168,11 @@ export const lowStockItemSchema = z.object({
   warehouseId: z.string().uuid(),
   warehouseName: z.string(),
   branchId: z.string().uuid(),
+  branchName: z.string(),
   quantity: z.string(),
   minStock: z.string(),
   deficit: z.string(),
+  status: z.enum(['out', 'low']),
 })
 
 export const lowStockItemsResponseSchema = z.object({

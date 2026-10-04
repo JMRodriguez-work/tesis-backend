@@ -44,10 +44,13 @@ export type LowStockItem = {
   itemId: string
   itemName: string
   itemCode: string | null
+  unitType: 'count' | 'weight' | 'volume' | null
   warehouseId: string
   warehouseName: string
   branchId: string
+  branchName: string
   quantity: string
   minStock: string
   deficit: string
+  status: 'out' | 'low'
 }

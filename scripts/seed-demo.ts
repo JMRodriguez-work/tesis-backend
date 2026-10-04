@@ -564,6 +564,19 @@ async function main() {
     console.log("  → Source INDEC ya existía (migración 0008)");
   }
 
+  const existingSeasonality = await sql`
+		SELECT id FROM external_data_sources WHERE name = 'Calendario estacional' LIMIT 1
+	`;
+  if (existingSeasonality.length === 0) {
+    await sql`
+			INSERT INTO external_data_sources (name, type, url, is_active)
+			VALUES ('Calendario estacional', 'seasonality', NULL, true)
+		`;
+    console.log("Source estacionalidad creada (usa calendario por defecto, sin URL)");
+  } else {
+    console.log("  → Source estacionalidad ya existía");
+  }
+
 
   console.log("\n");
   console.log("━".repeat(60));

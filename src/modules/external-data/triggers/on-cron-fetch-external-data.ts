@@ -22,7 +22,7 @@ export async function handleScheduledFetchExternalData(
     let enqueued = 0;
     let skipped = 0;
     for (const source of sources) {
-      if (!source.url) {
+      if (!source.url && source.type !== "seasonality") {
         skipped++;
         continue;
       }

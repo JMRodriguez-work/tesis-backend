@@ -50,6 +50,7 @@ export const defaultSeasonalityCalendar: SeasonalityParsed = {
     { month: 6, category: "Abrigado e invierno", intensity: 0.5 },
     { month: 7, category: "Vacaciones de invierno", intensity: 0.7 },
     { month: 8, category: "Día del Niño", intensity: 0.7 },
+    { month: 9, category: "Bebidas", intensity: 0.6 },
     { month: 10, category: "Día de la Madre (regalos)", intensity: 0.6 },
     { month: 12, category: "Fiestas y pan dulce", intensity: 0.95 },
   ],

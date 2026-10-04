@@ -12,6 +12,7 @@ import type {
 } from "../domain/external-data.entity";
 import { enforceIndecDateParams } from "../domain/enforce-indec-date-params";
 import { sanitizeUrl } from "../domain/sanitize-url";
+import { defaultSeasonalityCalendar, mergeSeasonality } from "../infra/http/parsers/seasonality";
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -41,6 +42,18 @@ export class RunFetchExternalData {
     }
 
     if (!source.url) {
+      if (source.type === "seasonality") {
+        const fetchedAt = new Date();
+        const merged = mergeSeasonality(
+          { peaks: defaultSeasonalityCalendar.peaks },
+          fetchedAt,
+        );
+        const updated = await upsertSourceData(this.db, source.id, merged, fetchedAt);
+        if (!updated) {
+          throw new ApiError(`No se pudo actualizar la fuente ${source.id}`, 500);
+        }
+        return { sourceId: source.id, updated: true, fetchedAt };
+      }
       const now = new Date();
       await setLastError(
         this.db,

@@ -400,12 +400,15 @@ export async function findLowStockItems(
       itemId: r.itemId,
       itemName: r.itemName,
       itemCode: r.itemCode,
+      unitType: (r.unitType ?? null) as LowStockItem['unitType'],
       warehouseId: r.warehouseId,
       warehouseName: r.warehouseName ?? '',
       branchId: r.branchId,
+      branchName: r.branchName ?? '',
       quantity: r.quantity,
       minStock: r.minStock,
       deficit: (Number(r.minStock) - Number(r.quantity)).toFixed(3),
+      status: (Number(r.quantity) <= 0 ? 'out' : 'low') as LowStockItem['status'],
     }))
 }
 
