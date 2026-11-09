@@ -14,10 +14,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-// ─── Better Auth (tablas base) ───────────────────────────────────────────────
-// Better Auth genera y mantiene: user, session, account, verification.
-// Extendemos `user` con campos del dominio. NO tocar las otras tres.
-
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -27,7 +23,6 @@ export const user = pgTable("user", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 
-  // Campos extendidos del dominio
   organizationId: uuid("organization_id").references(() => organizations.id),
   branchId: uuid("branch_id").references(() => branches.id),
   roleId: integer("role_id").references(() => roles.id),
@@ -75,7 +70,6 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at"),
 });
 
-// ─── Dominio ────────────────────────────────────────────────────────────────
 
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey().defaultRandom(),
