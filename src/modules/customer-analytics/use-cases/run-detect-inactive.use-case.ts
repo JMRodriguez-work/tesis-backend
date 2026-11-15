@@ -45,15 +45,19 @@ export class RunDetectInactive {
         skipped++;
         continue;
       }
-      const lastStr = c.lastPurchaseAt
-        ? c.lastPurchaseAt.toISOString().slice(0, 10)
+      const lastPurchase = c.lastPurchaseAt;
+      const daysSinceLastPurchase = lastPurchase
+        ? Math.max(1, Math.floor((now.getTime() - lastPurchase.getTime()) / DAY_MS))
+        : 0;
+      const lastStr = lastPurchase
+        ? lastPurchase.toISOString().slice(0, 10)
         : "nunca";
       await createRetentionRecommendation(this.db, {
         branchId: c.branchId,
         itemId: null,
         customerId: c.customerId,
         type: "retention",
-        description: `Cliente sin compras hace ${input.days} días. Última compra: ${lastStr}. Total acumulado: $${c.totalSpent} (${c.purchaseCount} compras).`,
+        description: `Cliente sin compras hace ${daysSinceLastPurchase} días (umbral: ${input.days}). Última compra: ${lastStr}. Total acumulado: $${c.totalSpent} (${c.purchaseCount} compras).`,
         priority: "medium",
         status: "pending",
       });
