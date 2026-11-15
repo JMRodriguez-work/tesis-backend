@@ -6,8 +6,8 @@ import {
 } from "../infra/repository/recommendation.repository";
 import {
   buildRestockDescription,
-  computeRestockPriorityWithIpc,
-  type IpcContext,
+  computeRestockPriorityWithWholesalePrices,
+  type WholesalePriceContext,
 } from "./restock-priority";
 
 export type OnSaleCreatedInput = {
@@ -19,7 +19,7 @@ export type OnSaleCreatedInput = {
   unitType: UnitType | null;
   unitName: string | null;
   unitAbbreviation: string | null;
-  ipcContext?: IpcContext | null;
+  priceContext?: WholesalePriceContext | null;
 };
 
 export async function onSaleCreated(tx: DB, input: OnSaleCreatedInput) {
@@ -36,11 +36,11 @@ export async function onSaleCreated(tx: DB, input: OnSaleCreatedInput) {
     return null;
   }
 
-  const ipcChange = input.ipcContext?.latestChange ?? null;
-  const priority = computeRestockPriorityWithIpc(
+  const wholesaleChange = input.priceContext?.latestChange ?? null;
+  const priority = computeRestockPriorityWithWholesalePrices(
     input.newQuantity,
     input.minStock,
-    ipcChange,
+    wholesaleChange,
   );
   const description = buildRestockDescription(
     input.itemName,
@@ -50,7 +50,7 @@ export async function onSaleCreated(tx: DB, input: OnSaleCreatedInput) {
       unitType: input.unitType,
       unitName: input.unitName,
       unitAbbreviation: input.unitAbbreviation,
-      ipcContext: input.ipcContext ?? null,
+      priceContext: input.priceContext ?? null,
     },
   );
 

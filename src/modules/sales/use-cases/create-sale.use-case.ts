@@ -18,7 +18,7 @@ import {
   type ResolveSaleBranchInput,
 } from "./resolve-sale-branch";
 import { onSaleCreated } from "../../recommendations/triggers/on-sale-created";
-import type { IpcContext } from "../../recommendations/triggers/restock-priority";
+import type { WholesalePriceContext } from "../../recommendations/triggers/restock-priority";
 import { onCustomerPurchase } from "../../customer-analytics/triggers/on-customer-purchase";
 import { findLatestActiveByType } from "../../external-data/infra/repository/external-data.repository";
 
@@ -215,7 +215,7 @@ export class CreateSale {
     const totalStr = round2(total);
     const discountStrNorm = round2(discountNum);
 
-    const ipcContext = await this.loadIpcContext();
+    const priceContext = await this.loadWholesalePriceContext();
 
     const sale = await this.db.transaction(async (tx) => {
       const [created] = await tx
@@ -274,7 +274,7 @@ export class CreateSale {
           unitType: it.unitType,
           unitName: it.unitName,
           unitAbbreviation: it.unitAbbreviation,
-          ipcContext,
+          priceContext,
         });
       }
 
@@ -299,7 +299,7 @@ export class CreateSale {
     return sale;
   }
 
-  private async loadIpcContext(): Promise<IpcContext | null> {
+  private async loadWholesalePriceContext(): Promise<WholesalePriceContext | null> {
     try {
       const source = await findLatestActiveByType(this.db, "wholesale_prices");
       if (!source?.data || typeof source.data !== "object") return null;
@@ -322,7 +322,7 @@ export class CreateSale {
       };
     } catch (err) {
       console.warn(
-        "[create-sale] failed to load IPC context, continuing without:",
+        "[create-sale] failed to load wholesale price context, continuing without:",
         err,
       );
       return null;

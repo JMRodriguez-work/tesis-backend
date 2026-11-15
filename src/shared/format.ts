@@ -55,3 +55,21 @@ export function formatQuantityWithUnit(
   }
   return numStr;
 }
+
+const MONTH_NAMES_ES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+/**
+ * Convierte un período de la serie INDEC ("2026-09-01" o "2026-09") en texto
+ * legible: "septiembre 2026". Si no matchea el formato, devuelve el string
+ * original sin tocarlo.
+ */
+export function formatPeriodEs(period: string): string {
+  const match = /^(\d{4})-(\d{2})/.exec(period);
+  if (!match) return period;
+  const monthName = MONTH_NAMES_ES[Number(match[2]) - 1];
+  if (!monthName) return period;
+  return `${monthName} ${match[1]}`;
+}

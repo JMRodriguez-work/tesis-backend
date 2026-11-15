@@ -1,5 +1,9 @@
 import type { RecommendationPriority } from '../domain/recommendation.entity'
-import { formatQuantityWithUnit, type UnitType } from '../../../shared/format'
+import {
+  formatPeriodEs,
+  formatQuantityWithUnit,
+  type UnitType,
+} from '../../../shared/format'
 
 /**
  * Decide the priority of a `restock` recommendation based on how far below
@@ -28,23 +32,27 @@ export function computeRestockPriority(
 
 /**
  * Variant of `computeRestockPriority` that bumps the priority to `high`
- * when the latest month-over-month IPC variation exceeds the inflation
- * threshold. The threshold is a percentage expressed as a number
- * (e.g. 5 means 5% MoM).
+ * when the latest month-over-month variation of the INDEC wholesale price
+ * index (IPIM) exceeds the threshold. The threshold is a percentage
+ * expressed as a number (e.g. 5 means 5% MoM).
  *
- * If `ipcChangeMoM` is null, falls back to the base ratio-based priority.
+ * Rationale: if what it costs to restock is rising fast, restocking can't
+ * wait — the same deficit is more urgent today than tomorrow.
+ *
+ * If `wholesaleChangeMoM` is null, falls back to the base ratio-based
+ * priority.
  */
-export const IPC_HIGH_PRIORITY_THRESHOLD = 5
+export const WHOLESALE_PRICE_HIGH_THRESHOLD = 5
 
-export function computeRestockPriorityWithIpc(
+export function computeRestockPriorityWithWholesalePrices(
   quantity: string,
   minStock: string,
-  ipcChangeMoM: number | null,
+  wholesaleChangeMoM: number | null,
 ): RecommendationPriority {
   const base = computeRestockPriority(quantity, minStock)
   if (
-    ipcChangeMoM !== null &&
-    ipcChangeMoM > IPC_HIGH_PRIORITY_THRESHOLD &&
+    wholesaleChangeMoM !== null &&
+    wholesaleChangeMoM > WHOLESALE_PRICE_HIGH_THRESHOLD &&
     base !== 'high'
   ) {
     return 'high'
@@ -52,9 +60,9 @@ export function computeRestockPriorityWithIpc(
   return base
 }
 
-export type IpcContext = {
+export type WholesalePriceContext = {
   latest: { period: string; value: number }
-  /** Variación porcentual mensual del IPC (último vs anterior). Null si no hay datos. */
+  /** Variación porcentual mensual de los precios mayoristas (último vs anterior). Null si no hay datos. */
   latestChange: number | null
   source: string
 }
@@ -67,19 +75,20 @@ export function buildRestockDescription(
     unitType: UnitType | null;
     unitName: string | null;
     unitAbbreviation: string | null;
-    ipcContext?: IpcContext | null;
+    priceContext?: WholesalePriceContext | null;
   },
 ): string {
-  const ipcContext = options.ipcContext ?? null;
+  const priceContext = options.priceContext ?? null;
   const qty = formatQuantityWithUnit(quantity, options.unitType, options.unitName, options.unitAbbreviation);
   const min = formatQuantityWithUnit(minStock, options.unitType, options.unitName, options.unitAbbreviation);
   const base = `Stock bajo nivel crítico: quedan ${qty} de "${itemName}" (mínimo: ${min}).`
-  if (!ipcContext) {
+  if (!priceContext) {
     return `${base} Reponer.`
   }
-  if (ipcContext.latestChange !== null) {
-    const sign = ipcContext.latestChange >= 0 ? '+' : '';
-    return `${base} IPC último mes: ${sign}${ipcContext.latestChange.toFixed(1)}% (${ipcContext.latest.period}, fuente: ${ipcContext.source}). Reponer y considerar ajuste de precio.`
+  const periodEs = formatPeriodEs(priceContext.latest.period)
+  if (priceContext.latestChange !== null) {
+    const sign = priceContext.latestChange >= 0 ? '+' : '';
+    return `${base} Precios mayoristas: ${sign}${priceContext.latestChange.toFixed(1)}% el último mes (fuente: ${priceContext.source}, ${periodEs}). Reponer y considerar ajustar el precio de venta.`
   }
-  return `${base} IPC (${ipcContext.latest.period}, fuente: ${ipcContext.source}) sin variación calculable. Reponer.`
+  return `${base} Precios mayoristas (fuente: ${priceContext.source}, ${periodEs}) sin variación calculable. Reponer.`
 }

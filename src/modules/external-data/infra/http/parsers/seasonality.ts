@@ -41,10 +41,13 @@ export function mergeSeasonality(
 
 /**
  * Fallback calendar used when no URL is configured (or for local dev).
- * Reflects typical Argentine small-store seasonality.
+ * Reflects typical Argentine small-store seasonality. Categorías pensadas
+ * para matchear con las categorías reales de los comercios (ej. "Bebidas").
  */
 export const defaultSeasonalityCalendar: SeasonalityParsed = {
   peaks: [
+    { month: 1, category: "Bebidas", intensity: 0.9 },
+    { month: 2, category: "Bebidas", intensity: 0.8 },
     { month: 3, category: "Útiles escolares", intensity: 0.8 },
     { month: 5, category: "Día de la Madre (regalos)", intensity: 0.6 },
     { month: 6, category: "Abrigado e invierno", intensity: 0.5 },
@@ -52,6 +55,7 @@ export const defaultSeasonalityCalendar: SeasonalityParsed = {
     { month: 8, category: "Día del Niño", intensity: 0.7 },
     { month: 9, category: "Bebidas", intensity: 0.6 },
     { month: 10, category: "Día de la Madre (regalos)", intensity: 0.6 },
+    { month: 12, category: "Bebidas", intensity: 0.9 },
     { month: 12, category: "Fiestas y pan dulce", intensity: 0.95 },
   ],
 };

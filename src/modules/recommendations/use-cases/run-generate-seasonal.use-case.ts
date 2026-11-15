@@ -79,6 +79,14 @@ function matchPeak(item: ItemWithCategory, monthPeaks: Peak[]): Peak | null {
 export class GenerateSeasonalRecommendations {
   constructor(private readonly db: DB) {}
 
+  /**
+   * Genera recomendaciones estacionales mirando el calendario con
+   * anticipación: compara los picos del mes en curso y del mes próximo con
+   * las categorías de los productos activos. La anticipación es el objetivo
+   * de la estacionalidad — asegurar stock ANTES del pico, no cuando el pico
+   * ya empezó. Idempotente: 1 recomendación estacional pendiente por
+   * (sucursal, producto) dentro del mes calendario.
+   */
   async execute(input: GenerateSeasonalInput): Promise<GenerateSeasonalResult> {
     const source = await findLatestActiveByType(this.db, "seasonality");
     if (!source?.data) {
@@ -92,9 +100,16 @@ export class GenerateSeasonalRecommendations {
 
     const now = new Date();
     const currentMonth = now.getUTCMonth() + 1;
-    const monthPeaks = payload.peaks.filter((p) => p.month === currentMonth);
-    if (monthPeaks.length === 0) {
-      return { scanned: 0, created: 0, skipped: 0, reason: "no peaks this month" };
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const currentPeaks = payload.peaks.filter((p) => p.month === currentMonth);
+    const nextPeaks = payload.peaks.filter((p) => p.month === nextMonth);
+    if (currentPeaks.length === 0 && nextPeaks.length === 0) {
+      return {
+        scanned: 0,
+        created: 0,
+        skipped: 0,
+        reason: "no peaks this or next month",
+      };
     }
 
     const branches = await this.loadBranches(input.organizationId, input.branchId);
@@ -102,7 +117,9 @@ export class GenerateSeasonalRecommendations {
       return { scanned: 0, created: 0, skipped: 0, reason: "no branches" };
     }
 
-    const monthName = MONTH_NAMES_ES[currentMonth - 1] ?? "el mes actual";
+    const currentMonthName =
+      MONTH_NAMES_ES[currentMonth - 1] ?? "el mes actual";
+    const nextMonthName = MONTH_NAMES_ES[nextMonth - 1] ?? "el mes próximo";
 
     let scanned = 0;
     let created = 0;
@@ -114,8 +131,10 @@ export class GenerateSeasonalRecommendations {
         branch.id,
       );
       for (const item of items) {
-        const matchingPeak = matchPeak(item, monthPeaks);
-        if (!matchingPeak) continue;
+        const inCurrent = matchPeak(item, currentPeaks);
+        const inNext = inCurrent ? null : matchPeak(item, nextPeaks);
+        const matched = inCurrent ?? inNext;
+        if (!matched) continue;
         scanned++;
 
         const existing = await findActiveSeasonalByItemBranch(
@@ -129,12 +148,14 @@ export class GenerateSeasonalRecommendations {
         }
 
         const priority =
-          matchingPeak.intensity > 0.7
+          matched.intensity > 0.7
             ? "high"
-            : matchingPeak.intensity > 0.4
+            : matched.intensity > 0.4
               ? "medium"
               : "low";
-        const description = `Pico estacional de "${matchingPeak.category}" esperado en ${monthName} (intensidad ${(matchingPeak.intensity * 100).toFixed(0)}%). Asegurá stock de "${item.name}" y considerá destacar el producto.`;
+        const description = inCurrent
+          ? `Pico estacional de "${matched.category}" este mes (${currentMonthName}, intensidad ${(matched.intensity * 100).toFixed(0)}%). Asegurá stock de "${item.name}" y considerá destacar el producto.`
+          : `Pico estacional de "${matched.category}" esperado en ${nextMonthName} (intensidad ${(matched.intensity * 100).toFixed(0)}%). El pico llega el mes próximo: asegurá stock de "${item.name}" con tiempo.`;
 
         await this.db.insert(schema.recommendations).values({
           branchId: branch.id,

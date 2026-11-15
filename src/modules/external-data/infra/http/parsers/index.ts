@@ -2,7 +2,7 @@ import type {
   ExternalDataSourceType,
   MergedExternalData,
 } from "../../../domain/external-data.entity";
-import { mergeIndecIpc } from "./wholesale-prices.indec";
+import { mergeIndecWholesalePrices } from "./wholesale-prices.indec";
 import { mergeSeasonality } from "./seasonality";
 import { mergeSearchTrends } from "./search-trends";
 
@@ -18,7 +18,7 @@ export function mergeExternalDataByType(
 ): MergedExternalData {
   switch (type) {
     case "wholesale_prices":
-      return mergeIndecIpc(raw, fetchedAt);
+      return mergeIndecWholesalePrices(raw, fetchedAt);
     case "seasonality":
       return mergeSeasonality(raw, fetchedAt);
     case "search_trends":

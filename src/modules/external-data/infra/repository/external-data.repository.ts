@@ -285,7 +285,7 @@ export { isNull };
  * Returns the most recently fetched active source of a given type that has
  * both `data` and `lastFetchedAt` populated. Used by the recommendation
  * engine to enrich `restock` descriptions with context from the latest
- * `wholesale_prices` (INDEC IPC) snapshot.
+ * `wholesale_prices` (INDEC precios mayoristas, IPIM) snapshot.
  *
  * Returns null if no active source of the type has been fetched yet.
  */

@@ -546,22 +546,29 @@ async function main() {
   }
   console.log("  ✓ 2 ventas antiguas para Carlos López (80d, 90d)");
 
-  logHeader("11/11 · Source INDEC IPC");
+  logHeader("11/11 · Source INDEC Precios mayoristas (IPIM)");
+  // Serie mayorista vigente del INDEC (base dic-2015=100). La anterior
+  // (103.1_I2N_2016_M_19, IPC GBA) está descontinuada — ver migración 0012.
+  const INDEC_SOURCE_NAME = "INDEC Precios mayoristas (IPIM)";
+  const INDEC_SOURCE_URL =
+    "https://apis.datos.gob.ar/series/api/series/?ids=449.1_NIVEL_GENERAL_0_0_13_97&format=json&last=24";
   const existingIndec = await sql`
-		SELECT id FROM external_data_sources WHERE name = 'INDEC IPC mensual' LIMIT 1
+		SELECT id FROM external_data_sources WHERE type = 'wholesale_prices' LIMIT 1
 	`;
   if (existingIndec.length === 0) {
     await sql`
 			INSERT INTO external_data_sources (name, type, url, is_active)
-			VALUES (
-				'INDEC IPC mensual', 'wholesale_prices',
-				${"https://apis.datos.gob.ar/series/api/series/?ids=103.1_I2N_2016_M_19&format=json&start_date=2023-01-01&last=24"},
-				true
-			)
+			VALUES (${INDEC_SOURCE_NAME}, 'wholesale_prices', ${INDEC_SOURCE_URL}, true)
 		`;
-    console.log("  ✓ Source INDEC creada");
+    console.log("  ✓ Source INDEC creada (IPIM)");
   } else {
-    console.log("  → Source INDEC ya existía (migración 0008)");
+    // Normaliza instalaciones previas que aún tengan la serie vieja.
+    await sql`
+			UPDATE external_data_sources
+			SET name = ${INDEC_SOURCE_NAME}, url = ${INDEC_SOURCE_URL}, is_active = true
+			WHERE id = ${existingIndec[0].id}::uuid
+		`;
+    console.log("  → Source INDEC actualizada a la serie IPIM");
   }
 
   const existingSeasonality = await sql`

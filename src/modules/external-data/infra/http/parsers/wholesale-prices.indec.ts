@@ -2,21 +2,30 @@ import { z } from "zod";
 import type { MergedExternalData } from "../../../domain/external-data.entity";
 
 /**
- * Parser for INDEC IPC (Índice de Precios al Consumidor) monthly series.
+ * Parser for the INDEC wholesale price index (IPIM) monthly series.
  *
  * Source: https://datos.gob.ar (series API)
- * Series id 103.1_I2N_2016_M_19 = IPC GBA, nivel general, base dic-2016=100,
- * frecuencia mensual. El campo `value` viene como número (nivel del índice),
- * NO como porcentaje de variación.
+ * Series id 449.1_NIVEL_GENERAL_0_0_13_97 = "Índice de Precios Internos
+ * Básicos al por Mayor", nivel general, base dic-2015=100, frecuencia
+ * mensual. Es la referencia de precios a la que compran los comercios
+ * relevados (declarada en el documento, §Variables externas seleccionadas).
+ *
+ * Nota histórica: la serie anterior (103.1_I2N_2016_M_19, IPC GBA) fue
+ * descontinuada por INDEC (último dato: 2020-07) y devolvía un payload
+ * vacío, por lo que el fetch terminaba en parse error. El cambio de serie
+ * se aplica en la migración 0012.
+ *
+ * El campo `value` viene como número (nivel del índice), NO como
+ * porcentaje de variación. La variación mensual se calcula acá.
  *
  * Example response shape (abridged):
  * {
  *   "data": [
- *     ["2026-04-01", 11336.5576],
- *     ["2026-05-01", 11594.5499],
+ *     ["2026-08-01", 16287.17],
+ *     ["2026-09-01", 16655.83],
  *     ...
  *   ],
- *   "count": 122,
+ *   "count": 24,
  *   "meta": [{ "frequency": "month", ... }]
  * }
  */
@@ -25,24 +34,24 @@ const indecSeriesRowSchema = z.tuple([
   z.union([z.string(), z.number()]),
 ]);
 
-const indecIpcResponseSchema = z.object({
+const indecWholesaleResponseSchema = z.object({
   data: z.array(indecSeriesRowSchema),
 });
 
-export type IndecIpcParsed = {
-  source: "INDEC IPC";
+export type IndecWholesaleParsed = {
+  source: "INDEC IPIM";
   latest: { period: string; value: number };
   /**
-   * Variación porcentual mensual del último dato respecto al anterior.
-   * `null` si la serie tiene menos de 2 puntos. Calculada como
-   * `((latest - previous) / previous) * 100`.
+   * Variación porcentual mensual de los precios mayoristas del último
+   * período respecto al anterior. `null` si la serie tiene menos de 2
+   * puntos. Calculada como `((latest - previous) / previous) * 100`.
    */
   latestChange: number | null;
   series: Array<{ period: string; value: number }>;
 };
 
-export function parseIndecIpc(raw: unknown): IndecIpcParsed {
-  const parsed = indecIpcResponseSchema.parse(raw);
+export function parseIndecWholesalePrices(raw: unknown): IndecWholesaleParsed {
+  const parsed = indecWholesaleResponseSchema.parse(raw);
   if (parsed.data.length === 0) {
     throw new Error("INDEC response has empty data array");
   }
@@ -57,18 +66,18 @@ export function parseIndecIpc(raw: unknown): IndecIpcParsed {
       ? ((latest.value - previous.value) / previous.value) * 100
       : null;
   return {
-    source: "INDEC IPC",
+    source: "INDEC IPIM",
     latest,
     latestChange,
     series,
   };
 }
 
-export function mergeIndecIpc(
+export function mergeIndecWholesalePrices(
   raw: unknown,
   fetchedAt: Date,
 ): MergedExternalData {
-  const payload = parseIndecIpc(raw);
+  const payload = parseIndecWholesalePrices(raw);
   return {
     type: "wholesale_prices",
     fetchedAt: fetchedAt.toISOString(),
