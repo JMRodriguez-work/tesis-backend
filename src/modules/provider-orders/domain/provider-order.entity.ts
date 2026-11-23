@@ -6,6 +6,9 @@ export type ProviderOrderItemWithItem = {
   itemName: string
   itemCode: string | null
   unitId: number | null
+  /** Unidad usada en la línea (por unitId): define cómo formatear quantity. */
+  unitType: 'count' | 'weight' | 'volume' | null
+  unitAbbreviation: string | null
   quantity: string
   cost: string
   lineTotal: string

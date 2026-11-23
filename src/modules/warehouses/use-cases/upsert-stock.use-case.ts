@@ -122,8 +122,8 @@ export class UpsertStock {
             referenceId: null,
             referenceType: 'manual',
             notes: previousStock
-              ? 'Ajuste manual vía upsert-stock'
-              : 'Stock inicial vía upsert-stock',
+              ? 'Ajuste manual'
+              : 'Stock inicial',
           })
           .returning()
 

@@ -76,6 +76,8 @@ const providerOrderItemSchema = z.object({
   itemName: z.string(),
   itemCode: z.string().nullable(),
   unitId: z.number().int().nullable(),
+  unitType: z.enum(['count', 'weight', 'volume']).nullable(),
+  unitAbbreviation: z.string().nullable(),
   quantity: z.string(),
   cost: z.string(),
   lineTotal: z.string(),

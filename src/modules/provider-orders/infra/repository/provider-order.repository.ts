@@ -101,9 +101,12 @@ export async function findProviderOrderById(
       cost: providerOrderItemTable.cost,
       itemName: schema.items.name,
       itemCode: schema.items.code,
+      unitType: schema.units.unitType,
+      unitAbbreviation: schema.units.abbreviation,
     })
     .from(providerOrderItemTable)
     .innerJoin(schema.items, eq(schema.items.id, providerOrderItemTable.itemId))
+    .leftJoin(schema.units, eq(schema.units.id, providerOrderItemTable.unitId))
     .where(eq(providerOrderItemTable.orderId, id))
 
   const items: ProviderOrderItemWithItem[] = itemsRaw.map((it) => ({
@@ -112,6 +115,11 @@ export async function findProviderOrderById(
     itemName: it.itemName,
     itemCode: it.itemCode,
     unitId: it.unitId,
+    unitType:
+      it.unitType === 'count' || it.unitType === 'weight' || it.unitType === 'volume'
+        ? it.unitType
+        : null,
+    unitAbbreviation: it.unitAbbreviation ?? null,
     quantity: it.quantity,
     cost: it.cost,
     lineTotal: round2(Number(it.cost) * Number(it.quantity)),

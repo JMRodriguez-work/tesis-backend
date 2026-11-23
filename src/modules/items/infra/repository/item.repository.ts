@@ -62,7 +62,7 @@ export type ItemWithRelations = {
     abbreviation: string
     unitType: string
     conversionFactor: string
-  } | null
+  } | null | null
   createdAt: Date
   updatedAt: Date
 }

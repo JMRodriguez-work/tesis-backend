@@ -216,7 +216,7 @@ export function registerItemRoutes(app: AppType) {
       tags: ['Items'],
       summary: 'Sugerencias para armar una orden de reposición del item',
       description:
-        'HU-032/HU-033. Devuelve, para el item: la demanda semanal promedio (ventas de los últimos 28 días) para calcular la cantidad sugerida, y el costo sugerido = último costo cargado en una orden a proveedor (o precio de compra de la ficha si nunca se compró) ajustado por la variación acumulada del índice mayorista del INDEC (IPIM) desde esa compra. Si el INDEC no tiene datos, la sugerencia sale sin ajuste (falla en silencio). Cross-branch (Manager) o cross-org (Admin) devuelve 404.',
+        'HU-032/HU-033. Devuelve, para el item: la demanda semanal (ventas de los últimos 28 días, redondeada según la unidad: count → entero por exceso, weight/volume → 2 decimales; sin unidad se trata como contable) para calcular la cantidad sugerida, y el costo sugerido = último costo cargado en una orden a proveedor (o precio de compra de la ficha si nunca se compró) ajustado por la variación acumulada del índice mayorista del INDEC (IPIM) desde esa compra. Si el INDEC no tiene datos, la sugerencia sale sin ajuste (falla en silencio). Cross-branch (Manager) o cross-org (Admin) devuelve 404.',
       middleware: [authMiddleware] as const,
       security: [{ cookieAuth: [] }],
       request: { params: itemIdParamSchema },

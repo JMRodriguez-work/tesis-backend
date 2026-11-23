@@ -6,6 +6,9 @@ export type SaleItemWithItem = {
   itemName: string
   itemCode: string | null
   unitId: number | null
+  /** Unidad usada en la línea (por unitId): define cómo formatear quantity. */
+  unitType: 'count' | 'weight' | 'volume' | null
+  unitAbbreviation: string | null
   warehouseId: string
   warehouseName: string
   quantity: string

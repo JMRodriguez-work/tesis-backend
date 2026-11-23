@@ -10,6 +10,7 @@ import {
   findUnitById,
   type ItemWithRelations,
 } from '../infra/repository/item.repository'
+import { findUnitByName, DEFAULT_UNIT_NAME } from '../../units/infra/repository/unit.repository'
 import {
   resolveItemBranchForWrite,
   type ResolveItemBranchInput,
@@ -87,12 +88,19 @@ export class CreateItem {
       }
     }
 
+    // Convención del sistema: sin unidad indicada → "Unidad" (contable).
+    let baseUnitId = input.baseUnitId
+    if (baseUnitId === undefined) {
+      const defaultUnit = await findUnitByName(this.db, DEFAULT_UNIT_NAME)
+      baseUnitId = defaultUnit?.id
+    }
+
     const created = await createItem(this.db, {
       branchId,
       name: trimmedName,
       description: input.description,
       categoryId: input.categoryId,
-      baseUnitId: input.baseUnitId,
+      baseUnitId,
       purchasePrice: input.purchasePrice,
       salePrice: input.salePrice,
       code: trimmedCode,

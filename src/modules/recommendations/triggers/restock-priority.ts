@@ -85,10 +85,9 @@ export function buildRestockDescription(
   if (!priceContext) {
     return `${base} Reponer.`
   }
-  const periodEs = formatPeriodEs(priceContext.latest.period)
   if (priceContext.latestChange !== null) {
     const sign = priceContext.latestChange >= 0 ? '+' : '';
-    return `${base} Precios mayoristas: ${sign}${priceContext.latestChange.toFixed(1)}% el último mes (fuente: ${priceContext.source}, ${periodEs}). Reponer y considerar ajustar el precio de venta.`
+    return `${base} Precios mayoristas: ${sign}${priceContext.latestChange.toFixed(1)}% el último mes medido (fuente: ${priceContext.source}). Reponer y considerar ajustar el precio de venta.`
   }
-  return `${base} Precios mayoristas (fuente: ${priceContext.source}, ${periodEs}) sin variación calculable. Reponer.`
+  return `${base} Precios mayoristas (fuente: ${priceContext.source}) sin variación calculable. Reponer.`
 }

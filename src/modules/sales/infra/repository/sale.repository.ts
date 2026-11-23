@@ -83,9 +83,12 @@ export async function findSaleById(db: DB, id: string): Promise<SaleWithRelation
       price: saleItemTable.price,
       itemName: schema.items.name,
       itemCode: schema.items.code,
+      unitType: schema.units.unitType,
+      unitAbbreviation: schema.units.abbreviation,
     })
     .from(saleItemTable)
     .innerJoin(schema.items, eq(schema.items.id, saleItemTable.itemId))
+    .leftJoin(schema.units, eq(schema.units.id, saleItemTable.unitId))
     .where(eq(saleItemTable.saleId, id))
 
   // Recover warehouseId per sale_item from the matching 'out' stock movement.
@@ -130,6 +133,11 @@ export async function findSaleById(db: DB, id: string): Promise<SaleWithRelation
       itemName: it.itemName,
       itemCode: it.itemCode,
       unitId: it.unitId,
+      unitType:
+        it.unitType === 'count' || it.unitType === 'weight' || it.unitType === 'volume'
+          ? it.unitType
+          : null,
+      unitAbbreviation: it.unitAbbreviation ?? null,
       warehouseId,
       warehouseName: warehousesMap.get(warehouseId) ?? '',
       quantity: it.quantity,

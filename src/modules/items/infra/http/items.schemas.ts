@@ -182,6 +182,7 @@ export const itemOrderCostSuggestionSchema = z.object({
 export const itemOrderSuggestionsResponseSchema = z.object({
   data: z.object({
     itemId: z.string().uuid(),
+    unitType: z.enum(['count', 'weight', 'volume']),
     quantitySuggestion: z.object({
       weeklyDemandUnits: z.number(),
       windowDays: z.number().int(),

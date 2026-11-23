@@ -72,6 +72,8 @@ function rowToListRow(r: {
   toWarehouseName: string | null
   type: string
   quantity: string
+  unitType?: string | null
+  unitAbbreviation?: string | null
   referenceType: string | null
   referenceId: string | null
   notes: string | null
@@ -90,6 +92,11 @@ function rowToListRow(r: {
     toWarehouseName: r.toWarehouseName,
     type: r.type as StockMovementType,
     quantity: r.quantity,
+    unitType:
+      r.unitType === 'count' || r.unitType === 'weight' || r.unitType === 'volume'
+        ? r.unitType
+        : null,
+    unitAbbreviation: r.unitAbbreviation ?? null,
     referenceType: r.referenceType,
     referenceId: r.referenceId,
     notes: r.notes,
@@ -117,6 +124,8 @@ export async function findStockMovementsPaginated(
       toWarehouseId: stockMovementTable.toWarehouseId,
       type: stockMovementTable.type,
       quantity: stockMovementTable.quantity,
+      unitType: schema.units.unitType,
+      unitAbbreviation: schema.units.abbreviation,
       referenceType: stockMovementTable.referenceType,
       referenceId: stockMovementTable.referenceId,
       notes: stockMovementTable.notes,
@@ -125,6 +134,7 @@ export async function findStockMovementsPaginated(
     .from(stockMovementTable)
     .innerJoin(schema.branches, eq(schema.branches.id, stockMovementTable.branchId))
     .innerJoin(schema.items, eq(schema.items.id, stockMovementTable.itemId))
+    .leftJoin(schema.units, eq(schema.units.id, schema.items.baseUnitId))
     .leftJoin(
       schema.warehouses,
       eq(schema.warehouses.id, stockMovementTable.fromWarehouseId),

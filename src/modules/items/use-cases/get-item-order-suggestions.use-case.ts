@@ -29,8 +29,10 @@ export type ItemCostSuggestion = {
 
 export type ItemOrderSuggestions = {
   itemId: string;
+  /** Tipo de unidad normalizado: sin unidad → "count". Define el redondeo de la demanda sugerida. */
+  unitType: "count" | "weight" | "volume";
   quantitySuggestion: {
-    /** Demanda semanal promedio (unidades crudas, sin redondear por tipo de unidad). */
+    /** Demanda semanal ya redondeada según la unidad (count → entero por exceso; weight/volume → 2 decimales). */
     weeklyDemandUnits: number;
     windowDays: number;
   };
@@ -86,8 +88,19 @@ export class GetItemOrderSuggestions {
     );
     const unitsSold = await sumItemUnitsSoldSince(this.db, item.id, since);
     const weeks = WEEKLY_DEMAND_WINDOW_DAYS / 7;
+    const rawWeekly = unitsSold / weeks;
+
+    // Convención: un producto sin unidad se trata como contable. La demanda
+    // sugerida se redondea según la unidad acá (backend), no en la UI — es
+    // semántica del dominio, no presentación: "comprar 10,25 unidades" no
+    // existe; "comprar 10,25 kg" sí.
+    const rawUnitType = item.baseUnit?.unitType ?? null;
+    const unitType =
+      rawUnitType === "weight" || rawUnitType === "volume"
+        ? rawUnitType
+        : "count";
     const weeklyDemandUnits =
-      Math.round((unitsSold / weeks) * 1000) / 1000;
+      unitType === "count" ? Math.ceil(rawWeekly) : Math.round(rawWeekly * 100) / 100;
 
     const costSuggestion = await this.buildCostSuggestion(
       item.id,
@@ -96,6 +109,7 @@ export class GetItemOrderSuggestions {
 
     return {
       itemId: item.id,
+      unitType,
       quantitySuggestion: {
         weeklyDemandUnits,
         windowDays: WEEKLY_DEMAND_WINDOW_DAYS,

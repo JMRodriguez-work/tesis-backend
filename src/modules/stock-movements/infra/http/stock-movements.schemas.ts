@@ -122,6 +122,8 @@ const stockMovementListRowSchema = z.object({
   toWarehouseName: z.string().nullable(),
   type: z.enum(['in', 'out', 'transfer', 'adjustment']),
   quantity: z.string(),
+  unitType: z.enum(['count', 'weight', 'volume']).nullable(),
+  unitAbbreviation: z.string().nullable(),
   referenceType: z.string().nullable(),
   referenceId: z.string().uuid().nullable(),
   notes: z.string().nullable(),

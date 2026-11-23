@@ -30,6 +30,9 @@ export type StockMovementListRow = {
   toWarehouseName: string | null
   type: StockMovementType
   quantity: string
+  /** Unidad del producto (por su baseUnit): define cómo formatear quantity. */
+  unitType: 'count' | 'weight' | 'volume' | null
+  unitAbbreviation: string | null
   referenceType: string | null
   referenceId: string | null
   notes: string | null
