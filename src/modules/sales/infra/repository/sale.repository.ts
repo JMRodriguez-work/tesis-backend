@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm'
 import type { DB } from '../../../../shared/db'
 import * as schema from '../../../../shared/db/schema'
 import type {
@@ -523,6 +523,33 @@ export async function findStockInBranchWarehousesForItem(
       ),
     )
     .orderBy(desc(schema.warehouseItemStocks.quantity))
+}
+
+/**
+ * Suma de unidades vendidas de un item en ventas activas (no canceladas, no
+ * eliminadas) desde `since`. Alimenta la demanda semanal estimada de la
+ * sugerencia de cantidad de una orden de reposición.
+ */
+export async function sumItemUnitsSoldSince(
+  db: DB,
+  itemId: string,
+  since: Date,
+): Promise<number> {
+  const result = await db
+    .select({
+      total: sql<string>`COALESCE(SUM(${schema.saleItems.quantity}), 0)`,
+    })
+    .from(schema.saleItems)
+    .innerJoin(schema.sales, eq(schema.sales.id, schema.saleItems.saleId))
+    .where(
+      and(
+        eq(schema.saleItems.itemId, itemId),
+        eq(schema.sales.isActive, true),
+        isNull(schema.sales.deletedAt),
+        gte(schema.sales.createdAt, since),
+      ),
+    )
+  return Number(result[0]?.total ?? 0)
 }
 
 /**

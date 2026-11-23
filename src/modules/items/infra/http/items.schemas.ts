@@ -167,3 +167,27 @@ export const itemsWithStockListResponseSchema = z.object({
   message: z.string(),
   status: z.number(),
 })
+
+export const itemOrderCostSuggestionSchema = z.object({
+  lastCost: z.number(),
+  lastCostAt: z.string().nullable(),
+  lastCostSource: z.enum(['provider_order', 'item']),
+  ipimSourceName: z.string().nullable(),
+  ipimVariationPct: z.number().nullable(),
+  ipimVariationFromPeriod: z.string().nullable(),
+  ipimVariationToPeriod: z.string().nullable(),
+  suggestedCost: z.number(),
+})
+
+export const itemOrderSuggestionsResponseSchema = z.object({
+  data: z.object({
+    itemId: z.string().uuid(),
+    quantitySuggestion: z.object({
+      weeklyDemandUnits: z.number(),
+      windowDays: z.number().int(),
+    }),
+    costSuggestion: itemOrderCostSuggestionSchema.nullable(),
+  }),
+  message: z.string(),
+  status: z.number(),
+})

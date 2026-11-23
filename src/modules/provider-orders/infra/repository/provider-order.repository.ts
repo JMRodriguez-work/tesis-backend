@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm'
 import type { DB } from '../../../../shared/db'
 import * as schema from '../../../../shared/db/schema'
 import type {
@@ -10,6 +10,41 @@ import type {
 
 export const providerOrderTable = schema.providerOrders
 export const providerOrderItemTable = schema.providerOrderItems
+
+export type LastOrderItemCostRow = {
+  cost: string
+  orderCreatedAt: Date
+}
+
+/**
+ * Último costo cargado para un item en una orden a proveedor no cancelada
+ * (la más reciente por fecha de creación). Es el ancla de la sugerencia de
+ * costo ajustada por la variación del índice mayorista del INDEC: si no hay
+ * órdenes, el caller cae al precio de compra de la ficha del producto.
+ */
+export async function findLastOrderItemCostByItemId(
+  db: DB,
+  itemId: string,
+): Promise<LastOrderItemCostRow | null> {
+  const rows = await db
+    .select({
+      cost: providerOrderItemTable.cost,
+      orderCreatedAt: providerOrderTable.createdAt,
+    })
+    .from(providerOrderItemTable)
+    .innerJoin(providerOrderTable, eq(providerOrderTable.id, providerOrderItemTable.orderId))
+    .where(
+      and(
+        eq(providerOrderItemTable.itemId, itemId),
+        ne(providerOrderTable.status, 'cancelled'),
+      ),
+    )
+    .orderBy(desc(providerOrderTable.createdAt))
+    .limit(1)
+  const row = rows[0]
+  if (!row) return null
+  return { cost: row.cost, orderCreatedAt: row.orderCreatedAt }
+}
 
 export type ListProviderOrdersFilters = {
   branchId: string | null

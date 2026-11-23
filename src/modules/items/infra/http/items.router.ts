@@ -16,12 +16,14 @@ import {
   itemDeleteResponseSchema,
   itemIdParamSchema,
   itemListResponseSchema,
+  itemOrderSuggestionsResponseSchema,
   itemResponseSchema,
   itemsWithStockListResponseSchema,
   listItemsQuerySchema,
   listItemsWithStockQuerySchema,
   updateItemSchema,
 } from './items.schemas'
+import { GetItemOrderSuggestions } from '../../use-cases/get-item-order-suggestions.use-case'
 
 export function registerItemRoutes(app: AppType) {
   app.openapi(
@@ -200,6 +202,52 @@ export function registerItemRoutes(app: AppType) {
         new ApiResponse({
           data: { item, warning: null },
           message: 'Item encontrado',
+          status: 200,
+        }),
+        200,
+      )
+    },
+  )
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/api/v1/items/{id}/order-suggestions',
+      tags: ['Items'],
+      summary: 'Sugerencias para armar una orden de reposición del item',
+      description:
+        'HU-032/HU-033. Devuelve, para el item: la demanda semanal promedio (ventas de los últimos 28 días) para calcular la cantidad sugerida, y el costo sugerido = último costo cargado en una orden a proveedor (o precio de compra de la ficha si nunca se compró) ajustado por la variación acumulada del índice mayorista del INDEC (IPIM) desde esa compra. Si el INDEC no tiene datos, la sugerencia sale sin ajuste (falla en silencio). Cross-branch (Manager) o cross-org (Admin) devuelve 404.',
+      middleware: [authMiddleware] as const,
+      security: [{ cookieAuth: [] }],
+      request: { params: itemIdParamSchema },
+      responses: {
+        200: {
+          description: 'Sugerencias calculadas',
+          content: { 'application/json': { schema: itemOrderSuggestionsResponseSchema } },
+        },
+        401: { description: 'No autenticado' },
+        404: { description: 'Item no encontrado' },
+      },
+    }),
+    async (c) => {
+      const user = c.get('user')
+      const db = c.get('db')
+      const { id } = c.req.valid('param')
+
+      const suggestions = await new GetItemOrderSuggestions(db).execute({
+        id,
+        userRoleId: user.roleId,
+        userBranchId: user.branchId,
+        userOrganizationId: user.organizationId,
+        requestedBranchId: null,
+      })
+
+      if (!suggestions) throw new ApiError('Item no encontrado', 404)
+
+      return c.json(
+        new ApiResponse({
+          data: suggestions,
+          message: 'Sugerencias calculadas',
           status: 200,
         }),
         200,
