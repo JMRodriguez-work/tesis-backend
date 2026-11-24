@@ -10,7 +10,7 @@ export async function handleDetectInactiveCustomers(
 ): Promise<void> {
   let pool: Pool | null = null;
   try {
-    const created = createConsumerDb(env.DATABASE_URL);
+    const created = createConsumerDb(env);
     pool = created.pool;
     const useCase = new RunDetectInactive(created.db);
     const result = await useCase.execute({

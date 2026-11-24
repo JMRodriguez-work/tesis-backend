@@ -10,7 +10,7 @@ export async function handleGenerateSeasonalRecommendations(
 ): Promise<void> {
   let pool: Pool | null = null;
   try {
-    const created = createConsumerDb(env.DATABASE_URL);
+    const created = createConsumerDb(env);
     pool = created.pool;
     const useCase = new GenerateSeasonalRecommendations(created.db);
     const result = await useCase.execute({

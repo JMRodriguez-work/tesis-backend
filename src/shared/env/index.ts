@@ -5,6 +5,9 @@ export type Env = {
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
 
+
+  LOCAL_DB_PROXY?: string;
+
   /**
    * Comma-separated list of origins allowed by CORS (Hono middleware).
    */

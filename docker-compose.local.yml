@@ -1,0 +1,34 @@
+name: tfg-local-db
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tfg
+      POSTGRES_PASSWORD: tfg
+      POSTGRES_DB: tfg
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - tfg-local-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tfg -d tfg"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  wsproxy:
+    image: ghcr.io/neondatabase/wsproxy:latest
+    restart: unless-stopped
+    environment:
+      APPEND_PORT: "db:5432"
+      ALLOW_ADDR_REGEX: ".*"
+    ports:
+      - "127.0.0.1:55433:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  tfg-local-db-data:

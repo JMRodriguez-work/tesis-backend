@@ -11,7 +11,7 @@ export async function handleScheduledFetchExternalData(
   env: Env,
   _ctx: ExecutionContext,
 ): Promise<void> {
-  const { db, pool } = createConsumerDb(env.DATABASE_URL);
+  const { db, pool } = createConsumerDb(env);
   try {
     const sources = await findActiveSources(db);
     if (sources.length === 0) {

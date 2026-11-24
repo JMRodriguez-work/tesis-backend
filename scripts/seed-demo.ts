@@ -1,12 +1,14 @@
-
-import { neon, neonConfig } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
 import { config as loadEnv } from "dotenv";
-import * as ws from "ws";
+import { WebSocket } from "ws";
+import { configureNeonForLocalProxy } from "../src/shared/db/neon-config";
 
 
-neonConfig.webSocketConstructor = ws as unknown as typeof globalThis.WebSocket;
+neonConfig.webSocketConstructor = WebSocket as unknown as typeof globalThis.WebSocket;
 
 loadEnv({ path: ".env" });
+
+configureNeonForLocalProxy(process.env.LOCAL_DB_PROXY);
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -15,7 +17,19 @@ if (!DATABASE_URL) {
 
 const API_URL = process.env.SEED_API_URL ?? "http://localhost:8787";
 
-const sql = neon(DATABASE_URL);
+const pool = new Pool({ connectionString: DATABASE_URL });
+
+async function sql(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<Record<string, any>[]> {
+  const text = strings.reduce(
+    (acc, part, i) => acc + (i === 0 ? "" : `$${i}`) + part,
+    "",
+  );
+  const result = await pool.query(text, values as any[]);
+  return result.rows as Record<string, any>[];
+}
 
 const ORG_NAME = "Almacén Don Pedro";
 const BRANCH_NAME = "Casa Central";
@@ -103,7 +117,13 @@ async function main() {
     console.log(
       "    o directamente corré: DROP SCHEMA public CASCADE; CREATE SCHEMA public;",
     );
+    console.log(
+      "    y también: DROP SCHEMA IF EXISTS drizzle CASCADE;",
+    );
     console.log("    y luego: pnpm run db:migrate && pnpm run seed:demo\n");
+    console.log(
+      "    (En local es más simple: docker compose -f docker-compose.local.yml down -v)\n",
+    );
     process.exit(0);
   }
 
@@ -598,9 +618,13 @@ async function main() {
 }
 
 main()
-  .then(() => process.exit(0))
-  .catch((err) => {
+  .then(async () => {
+    await pool.end();
+    process.exit(0);
+  })
+  .catch(async (err) => {
     console.error("\n❌ Seed falló:", err);
+    await pool.end();
     process.exit(1);
   });
 

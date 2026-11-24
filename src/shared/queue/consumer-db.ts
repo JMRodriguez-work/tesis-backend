@@ -1,9 +1,12 @@
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
+import type { Env } from "../env";
+import { configureNeonForLocalProxy } from "../db/neon-config";
 import * as schema from "../db/schema";
 
-export function createConsumerDb(connectionString: string) {
-  const pool = new Pool({ connectionString });
+export function createConsumerDb(env: Env) {
+  configureNeonForLocalProxy(env.LOCAL_DB_PROXY);
+  const pool = new Pool({ connectionString: env.DATABASE_URL });
   const db = drizzle(pool, { schema });
   return { db, pool };
 }
