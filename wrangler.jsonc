@@ -5,12 +5,12 @@
   "compatibility_date": "2026-06-09",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
   "vars": {
     "BETTER_AUTH_URL": "http://localhost:8787",
     "ALLOWED_ORIGINS": "http://localhost:5173,http://localhost:3000",
-    "FRONTEND_TRUSTED_ORIGINS": "http://localhost:5173,http://localhost:3000",
+    "FRONTEND_TRUSTED_ORIGINS": "http://localhost:5173,http://localhost:3000"
   },
   "queues": {
     "producers": [
@@ -36,7 +36,7 @@
       "vars": {
         "BETTER_AUTH_URL": "https://tfg-backend.<your-subdomain>.workers.dev",
         "ALLOWED_ORIGINS": "https://<your-frontend>.pages.dev",
-        "FRONTEND_TRUSTED_ORIGINS": "https://<your-frontend>.pages.dev",
+        "FRONTEND_TRUSTED_ORIGINS": "https://<your-frontend>.pages.dev"
       },
       "queues": {
         "producers": [

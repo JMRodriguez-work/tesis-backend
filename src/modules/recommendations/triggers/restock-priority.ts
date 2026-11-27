@@ -5,17 +5,6 @@ import {
   type UnitType,
 } from '../../../shared/format'
 
-/**
- * Decide the priority of a `restock` recommendation based on how far below
- * the minStock the current quantity is.
- *
- * ratio = (minStock - quantity) / minStock  ∈ [0, 1]
- *   ratio > 0.75  → high    (we're 75%+ below the minimum)
- *   ratio > 0.25  → medium  (we're 25%+ below the minimum)
- *   else          → low
- *
- * If minStock is 0 or quantity is exactly at minStock, returns 'low'.
- */
 export function computeRestockPriority(
   quantity: string,
   minStock: string,
@@ -30,18 +19,6 @@ export function computeRestockPriority(
   return 'low'
 }
 
-/**
- * Variant of `computeRestockPriority` that bumps the priority to `high`
- * when the latest month-over-month variation of the INDEC wholesale price
- * index (IPIM) exceeds the threshold. The threshold is a percentage
- * expressed as a number (e.g. 5 means 5% MoM).
- *
- * Rationale: if what it costs to restock is rising fast, restocking can't
- * wait — the same deficit is more urgent today than tomorrow.
- *
- * If `wholesaleChangeMoM` is null, falls back to the base ratio-based
- * priority.
- */
 export const WHOLESALE_PRICE_HIGH_THRESHOLD = 5
 
 export function computeRestockPriorityWithWholesalePrices(

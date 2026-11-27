@@ -39,11 +39,6 @@ export function mergeSeasonality(
   };
 }
 
-/**
- * Fallback calendar used when no URL is configured (or for local dev).
- * Reflects typical Argentine small-store seasonality. Categorías pensadas
- * para matchear con las categorías reales de los comercios (ej. "Bebidas").
- */
 export const defaultSeasonalityCalendar: SeasonalityParsed = {
   peaks: [
     { month: 1, category: "Bebidas", intensity: 0.9 },

@@ -62,19 +62,6 @@ registerUnitRoutes(app)
 registerUserRoutes(app)
 registerWarehouseRoutes(app)
 
-/**
- * Triple export: the same Worker handles HTTP requests, queue
- * messages, and scheduled (cron) invocations. See AGENTS.md §6.3 for
- * the architecture rationale.
- *
- * - `fetch` delegates to the Hono app.
- * - `queue` is invoked by Cloudflare with a batch of messages from
- *   `ANALYTICS_QUEUE`. The dispatcher in `shared/queue/dispatcher.ts`
- *   routes each message to the right handler.
- * - `scheduled` is invoked by the Cron Trigger configured in
- *   `wrangler.jsonc` (`triggers.crons`). Phase 3.4 uses it to enqueue
- *   `fetch-external-data` jobs for every configured source.
- */
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     return app.fetch(request, env, ctx)
